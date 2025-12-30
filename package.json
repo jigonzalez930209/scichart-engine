@@ -1,0 +1,45 @@
+{
+  "name": "scichart-engine",
+  "version": "0.1.0",
+  "description": "A high-performance scientific charting engine for web applications.",
+  "type": "module",
+  "main": "./dist/scichart-engine.umd.cjs",
+  "module": "./dist/scichart-engine.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/scichart-engine.js",
+      "require": "./dist/scichart-engine.umd.cjs"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js",
+      "require": "./dist/react/index.umd.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build -c vite.config.lib.ts",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^3.6.0",
+    "vitepress": "^1.0.0-rc.31"
+  }
+}

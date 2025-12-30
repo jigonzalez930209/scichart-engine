@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SciChart Engine - Vanilla Example</title>
+    <style>
+        body { margin: 0; background: #0b0e14; color: white; font-family: sans-serif; }
+        #chart-container { width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="chart-container">
+        <canvas id="main-canvas"></canvas>
+    </div>
+    <script type="module">
+        import { createChart } from '../../src/index.ts';
+
+        const canvas = document.getElementById('main-canvas');
+        const chart = createChart({
+            canvas: canvas,
+            title: 'Real-time Signal',
+            theme: 'midnight',
+            showControls: true,
+            showLegend: true
+        });
+
+        chart.addSeries({
+            id: 'signal',
+            name: 'Sensor A',
+            color: '#00f2ff',
+            type: 'line'
+        });
+
+        // Simulate data
+        let t = 0;
+        setInterval(() => {
+            const x = t;
+            const y = Math.sin(t) + Math.random() * 0.1;
+            chart.updateSeries('signal', {
+                append: true,
+                data: { x: [x], y: [y] }
+            });
+            t += 0.1;
+        }, 16);
+    </script>
+</body>
+</html>
