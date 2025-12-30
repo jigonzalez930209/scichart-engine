@@ -11,14 +11,22 @@ import type {
   SeriesUpdateData,
   Bounds,
   SeriesType,
-} from '../types';
+} from "../types";
 
 const DEFAULT_STYLE: SeriesStyle = {
-  color: '#ff0055',
+  color: "#ff0055",
   width: 1.5,
   opacity: 1,
   pointSize: 4,
 };
+
+function ensureTypedArray(
+  data: Float32Array | Float64Array | number[] | undefined
+): Float32Array | Float64Array {
+  if (!data) return new Float32Array(0);
+  if (data instanceof Float32Array || data instanceof Float64Array) return data;
+  return new Float32Array(data);
+}
 
 export class Series {
   private id: string;
@@ -39,12 +47,28 @@ export class Series {
   private smoothedData: SeriesData | null = null;
   private smoothingNeedsUpdate = true;
 
-
   constructor(options: SeriesOptions) {
+    if (!options) throw new Error("[Series] Options are required");
     this.id = options.id;
     this.type = options.type;
-    this.data = { ...options.data };
-    this.style = { ...DEFAULT_STYLE, ...options.style };
+
+    this.data = {
+      x: ensureTypedArray(options.data?.x),
+      y: ensureTypedArray(options.data?.y),
+    };
+
+    // Support both style object and top-level style properties for convenience
+    this.style = {
+      ...DEFAULT_STYLE,
+      ...options.style,
+    };
+
+    // Fallback for top-level style properties often used in examples
+    if ((options as any).color) this.style.color = (options as any).color;
+    if ((options as any).width) this.style.width = (options as any).width;
+    if ((options as any).pointSize)
+      this.style.pointSize = (options as any).pointSize;
+
     this.visible = options.visible ?? true;
     this.cycle = options.cycle;
 
@@ -53,7 +77,7 @@ export class Series {
       console.warn(
         `[Series "${this.id}"] X and Y arrays have different lengths:`,
         this.data.x.length,
-        'vs',
+        "vs",
         this.data.y.length
       );
     }
@@ -164,7 +188,8 @@ export class Series {
       if (yVal > yMax) yMax = yVal;
     }
 
-    return { xMin, xMax, yMin, yMax };
+    const bounds = { xMin, xMax, yMin, yMax };
+    return bounds;
   }
 
   // ----------------------------------------
@@ -177,22 +202,22 @@ export class Series {
    * For streaming data, use append=true to avoid recreating buffers.
    */
   updateData(update: SeriesUpdateData): void {
+    if (!update) return;
+
     if (update.append) {
-      // Append mode: create new arrays with combined data
-      if (update.x && update.y) {
+      const newX = ensureTypedArray(update.x);
+      const newY = ensureTypedArray(update.y);
+
+      if (newX.length > 0 && newY.length > 0) {
         this.data = {
-          x: this.appendArray(this.data.x, update.x),
-          y: this.appendArray(this.data.y, update.y),
+          x: this.appendArray(this.data.x, newX),
+          y: this.appendArray(this.data.y, newY),
         };
-      } else if (update.y) {
-        // Only Y update (same X points)
-        console.warn('[Series] Append with only Y is not efficient');
-        this.data.y = this.appendArray(this.data.y, update.y);
       }
     } else {
       // Replace mode
-      if (update.x) this.data.x = update.x;
-      if (update.y) this.data.y = update.y;
+      if (update.x) this.data.x = ensureTypedArray(update.x);
+      if (update.y) this.data.y = ensureTypedArray(update.y);
     }
 
     // Invalidate bounds cache
@@ -206,9 +231,9 @@ export class Series {
     newData: Float32Array | Float64Array
   ): Float32Array | Float64Array {
     // Create new array with combined length
-    const combined = new (existing.constructor as Float32ArrayConstructor | Float64ArrayConstructor)(
-      existing.length + newData.length
-    );
+    const combined = new (existing.constructor as
+      | Float32ArrayConstructor
+      | Float64ArrayConstructor)(existing.length + newData.length);
     combined.set(existing, 0);
     combined.set(newData, existing.length);
     return combined;
@@ -217,7 +242,10 @@ export class Series {
   /**
    * Replace all data at once
    */
-  setData(x: Float32Array | Float64Array, y: Float32Array | Float64Array): void {
+  setData(
+    x: Float32Array | Float64Array,
+    y: Float32Array | Float64Array
+  ): void {
     this.data = { x, y };
     this.boundsNeedsUpdate = true;
     this.smoothingNeedsUpdate = true;
@@ -237,8 +265,12 @@ export class Series {
     }
   }
 
-  get needsBufferUpdate(): boolean { return this._needsBufferUpdate; }
-  set needsBufferUpdate(val: boolean) { this._needsBufferUpdate = val; }
+  get needsBufferUpdate(): boolean {
+    return this._needsBufferUpdate;
+  }
+  set needsBufferUpdate(val: boolean) {
+    this._needsBufferUpdate = val;
+  }
 
   setVisible(visible: boolean): void {
     this.visible = visible;

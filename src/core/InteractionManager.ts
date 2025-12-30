@@ -7,7 +7,7 @@
  * - Cursor tracking
  */
 
-import type { Bounds } from '../types';
+import type { Bounds } from "../types";
 
 // ============================================
 // Types
@@ -16,7 +16,9 @@ import type { Bounds } from '../types';
 export interface InteractionCallbacks {
   onZoom: (bounds: Bounds) => void;
   onPan: (deltaX: number, deltaY: number) => void;
-  onBoxZoom: (rect: { x: number; y: number; width: number; height: number } | null) => void;
+  onBoxZoom: (
+    rect: { x: number; y: number; width: number; height: number } | null
+  ) => void;
   onCursorMove: (x: number, y: number) => void;
   onCursorLeave: () => void;
 }
@@ -80,25 +82,27 @@ export class InteractionManager {
   }
 
   private attachListeners(): void {
-    this.container.addEventListener('wheel', this.boundWheel, { passive: false });
-    this.container.addEventListener('mousedown', this.boundMouseDown);
-    this.container.addEventListener('mousemove', this.boundMouseMove);
-    this.container.addEventListener('mouseup', this.boundMouseUp);
-    this.container.addEventListener('mouseleave', this.boundMouseLeave);
-    this.container.addEventListener('touchstart', this.boundTouchStart);
-    this.container.addEventListener('touchmove', this.boundTouchMove);
-    this.container.addEventListener('touchend', this.boundTouchEnd);
+    this.container.addEventListener("wheel", this.boundWheel, {
+      passive: false,
+    });
+    this.container.addEventListener("mousedown", this.boundMouseDown);
+    this.container.addEventListener("mousemove", this.boundMouseMove);
+    this.container.addEventListener("mouseup", this.boundMouseUp);
+    this.container.addEventListener("mouseleave", this.boundMouseLeave);
+    this.container.addEventListener("touchstart", this.boundTouchStart);
+    this.container.addEventListener("touchmove", this.boundTouchMove);
+    this.container.addEventListener("touchend", this.boundTouchEnd);
   }
 
   private detachListeners(): void {
-    this.container.removeEventListener('wheel', this.boundWheel);
-    this.container.removeEventListener('mousedown', this.boundMouseDown);
-    this.container.removeEventListener('mousemove', this.boundMouseMove);
-    this.container.removeEventListener('mouseup', this.boundMouseUp);
-    this.container.removeEventListener('mouseleave', this.boundMouseLeave);
-    this.container.removeEventListener('touchstart', this.boundTouchStart);
-    this.container.removeEventListener('touchmove', this.boundTouchMove);
-    this.container.removeEventListener('touchend', this.boundTouchEnd);
+    this.container.removeEventListener("wheel", this.boundWheel);
+    this.container.removeEventListener("mousedown", this.boundMouseDown);
+    this.container.removeEventListener("mousemove", this.boundMouseMove);
+    this.container.removeEventListener("mouseup", this.boundMouseUp);
+    this.container.removeEventListener("mouseleave", this.boundMouseLeave);
+    this.container.removeEventListener("touchstart", this.boundTouchStart);
+    this.container.removeEventListener("touchmove", this.boundTouchMove);
+    this.container.removeEventListener("touchend", this.boundTouchEnd);
   }
 
   public setPanMode(enabled: boolean): void {
@@ -110,13 +114,14 @@ export class InteractionManager {
   // ----------------------------------------
 
   private handleWheel(e: WheelEvent): void {
-    e.preventDefault();
+    const plotArea = this.getPlotArea();
+    if (plotArea.width <= 1 || plotArea.height <= 1) return;
 
+    e.preventDefault();
     const rect = this.container.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const plotArea = this.getPlotArea();
     const bounds = this.getBounds();
 
     // Determine zoom targets
@@ -124,11 +129,19 @@ export class InteractionManager {
     let zoomY = false;
 
     // Y Axis area (left)
-    if (mouseX < plotArea.x && mouseY >= plotArea.y && mouseY <= plotArea.y + plotArea.height) {
+    if (
+      mouseX < plotArea.x &&
+      mouseY >= plotArea.y &&
+      mouseY <= plotArea.y + plotArea.height
+    ) {
       zoomY = true;
     }
     // X Axis area (bottom)
-    else if (mouseY > plotArea.y + plotArea.height && mouseX >= plotArea.x && mouseX <= plotArea.x + plotArea.width) {
+    else if (
+      mouseY > plotArea.y + plotArea.height &&
+      mouseX >= plotArea.x &&
+      mouseX <= plotArea.x + plotArea.width
+    ) {
       zoomX = true;
     }
     // Plot area (both)
@@ -153,21 +166,53 @@ export class InteractionManager {
     const dataX = bounds.xMin + normalizedX * (bounds.xMax - bounds.xMin);
     const dataY = bounds.yMin + normalizedY * (bounds.yMax - bounds.yMin);
 
+    // Safeguard: Prevent zooming out too far or in too deep
+    // Limits
+    const MIN_RANGE = 1e-12;
+    const MAX_RANGE = 1e15;
+
+    let nextXMin = zoomX
+      ? dataX - (dataX - bounds.xMin) * zoomFactor
+      : bounds.xMin;
+    let nextXMax = zoomX
+      ? dataX + (bounds.xMax - dataX) * zoomFactor
+      : bounds.xMax;
+    let nextYMin = zoomY
+      ? dataY - (dataY - bounds.yMin) * zoomFactor
+      : bounds.yMin;
+    let nextYMax = zoomY
+      ? dataY + (bounds.yMax - dataY) * zoomFactor
+      : bounds.yMax;
+
+    const nextXRange = nextXMax - nextXMin;
+    const nextYRange = nextYMax - nextYMin;
+
+    if (nextXRange < MIN_RANGE || nextXRange > MAX_RANGE) {
+      nextXMin = bounds.xMin;
+      nextXMax = bounds.xMax;
+    }
+    if (nextYRange < MIN_RANGE || nextYRange > MAX_RANGE) {
+      nextYMin = bounds.yMin;
+      nextYMax = bounds.yMax;
+    }
+
     const newBounds: Bounds = {
-      xMin: zoomX ? dataX - (dataX - bounds.xMin) * zoomFactor : bounds.xMin,
-      xMax: zoomX ? dataX + (bounds.xMax - dataX) * zoomFactor : bounds.xMax,
-      yMin: zoomY ? dataY - (dataY - bounds.yMin) * zoomFactor : bounds.yMin,
-      yMax: zoomY ? dataY + (bounds.yMax - dataY) * zoomFactor : bounds.yMax,
+      xMin: nextXMin,
+      xMax: nextXMax,
+      yMin: nextYMin,
+      yMax: nextYMax,
     };
 
     this.callbacks.onZoom(newBounds);
   }
 
   private handleMouseDown(e: MouseEvent): void {
+    const plotArea = this.getPlotArea();
+    if (plotArea.width <= 1 || plotArea.height <= 1) return;
+
     const rect = this.container.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    const plotArea = this.getPlotArea();
 
     // Check if mouse is in plot area
     if (
@@ -179,11 +224,11 @@ export class InteractionManager {
       if (this.isPanMode) {
         this.isDragging = true;
         this.lastMousePos = { x: e.clientX, y: e.clientY };
-        this.container.style.cursor = 'grabbing';
+        this.container.style.cursor = "grabbing";
       } else {
         this.isBoxSelecting = true;
         this.selectionStart = { x: mouseX, y: mouseY };
-        this.container.style.cursor = 'crosshair';
+        this.container.style.cursor = "crosshair";
       }
     }
   }
@@ -216,12 +261,12 @@ export class InteractionManager {
     }
     this.isDragging = false;
     this.isBoxSelecting = false;
-    this.container.style.cursor = '';
+    this.container.style.cursor = "";
   }
 
   private handleMouseLeave(): void {
     this.isDragging = false;
-    this.container.style.cursor = '';
+    this.container.style.cursor = "";
     this.callbacks.onCursorLeave();
   }
 

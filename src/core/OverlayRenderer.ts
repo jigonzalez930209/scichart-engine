@@ -5,10 +5,9 @@
  * It uses the theme system for consistent styling.
  */
 
-import type { Bounds } from '../types';
-import type { Scale } from '../scales';
-import type { ChartTheme } from '../theme';
-import type { Series } from './Series';
+import type { Scale } from "../scales";
+import type { ChartTheme } from "../theme";
+import type { Series } from "./Series";
 
 // ============================================
 // Types
@@ -64,12 +63,7 @@ export class OverlayRenderer {
   /**
    * Draw the grid
    */
-  drawGrid(
-    plotArea: PlotArea,
-    bounds: Bounds,
-    xScale: Scale,
-    yScale: Scale
-  ): void {
+  drawGrid(plotArea: PlotArea, xScale: Scale, yScale: Scale): void {
     if (!this.theme.grid.visible) return;
 
     const { ctx } = this;
@@ -85,7 +79,7 @@ export class OverlayRenderer {
 
     // Vertical lines (X ticks)
     xTicks.forEach((tick) => {
-      const x = this.dataToPixelX(tick, bounds, plotArea);
+      const x = xScale.transform(tick);
       if (x >= plotArea.x && x <= plotArea.x + plotArea.width) {
         ctx.beginPath();
         ctx.moveTo(x, plotArea.y);
@@ -96,7 +90,7 @@ export class OverlayRenderer {
 
     // Horizontal lines (Y ticks)
     yTicks.forEach((tick) => {
-      const y = this.dataToPixelY(tick, bounds, plotArea);
+      const y = yScale.transform(tick);
       if (y >= plotArea.y && y <= plotArea.y + plotArea.height) {
         ctx.beginPath();
         ctx.moveTo(plotArea.x, y);
@@ -116,7 +110,7 @@ export class OverlayRenderer {
       const minorYTicks = this.generateMinorTicks(yTicks, grid.minorDivisions);
 
       minorXTicks.forEach((tick) => {
-        const x = this.dataToPixelX(tick, bounds, plotArea);
+        const x = xScale.transform(tick);
         if (x >= plotArea.x && x <= plotArea.x + plotArea.width) {
           ctx.beginPath();
           ctx.moveTo(x, plotArea.y);
@@ -126,7 +120,7 @@ export class OverlayRenderer {
       });
 
       minorYTicks.forEach((tick) => {
-        const y = this.dataToPixelY(tick, bounds, plotArea);
+        const y = yScale.transform(tick);
         if (y >= plotArea.y && y <= plotArea.y + plotArea.height) {
           ctx.beginPath();
           ctx.moveTo(plotArea.x, y);
@@ -142,12 +136,7 @@ export class OverlayRenderer {
   /**
    * Draw X axis with ticks and labels
    */
-  drawXAxis(
-    plotArea: PlotArea,
-    bounds: Bounds,
-    xScale: Scale,
-    label?: string
-  ): void {
+  drawXAxis(plotArea: PlotArea, xScale: Scale, label?: string): void {
     const { ctx } = this;
     const axis = this.theme.xAxis;
     const xTicks = xScale.ticks(8);
@@ -164,11 +153,11 @@ export class OverlayRenderer {
     // Ticks and labels
     ctx.fillStyle = axis.labelColor;
     ctx.font = `${axis.labelSize}px ${axis.fontFamily}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
 
     xTicks.forEach((tick) => {
-      const x = this.dataToPixelX(tick, bounds, plotArea);
+      const x = xScale.transform(tick);
 
       if (x >= plotArea.x && x <= plotArea.x + plotArea.width) {
         // Tick mark
@@ -187,8 +176,8 @@ export class OverlayRenderer {
     if (label) {
       ctx.fillStyle = axis.titleColor;
       ctx.font = `${axis.titleSize}px ${axis.fontFamily}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
       ctx.fillText(
         label,
         plotArea.x + plotArea.width / 2,
@@ -200,12 +189,7 @@ export class OverlayRenderer {
   /**
    * Draw Y axis with ticks and labels
    */
-  drawYAxis(
-    plotArea: PlotArea,
-    bounds: Bounds,
-    yScale: Scale,
-    label?: string
-  ): void {
+  drawYAxis(plotArea: PlotArea, yScale: Scale, label?: string): void {
     const { ctx } = this;
     const axis = this.theme.yAxis;
     const yTicks = yScale.ticks(6);
@@ -222,11 +206,11 @@ export class OverlayRenderer {
     // Ticks and labels
     ctx.fillStyle = axis.labelColor;
     ctx.font = `${axis.labelSize}px ${axis.fontFamily}`;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
 
     yTicks.forEach((tick) => {
-      const y = this.dataToPixelY(tick, bounds, plotArea);
+      const y = yScale.transform(tick);
 
       if (y >= plotArea.y && y <= plotArea.y + plotArea.height) {
         // Tick mark
@@ -246,8 +230,8 @@ export class OverlayRenderer {
       ctx.save();
       ctx.fillStyle = axis.titleColor;
       ctx.font = `${axis.titleSize}px ${axis.fontFamily}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
       ctx.translate(15, plotArea.y + plotArea.height / 2);
       ctx.rotate(-Math.PI / 2);
       ctx.fillText(label, 0, 0);
@@ -281,28 +265,31 @@ export class OverlayRenderer {
       const label = s.getId();
       const width = ctx.measureText(label).width;
       maxWidth = Math.max(maxWidth, width);
-      return { id: s.getId(), color: s.getStyle().color ?? '#ff0055', label };
+      return { id: s.getId(), color: s.getStyle().color ?? "#ff0055", label };
     });
 
     const boxWidth = legend.swatchSize + 8 + maxWidth + legend.padding * 2;
-    const boxHeight = items.length * (legend.swatchSize + legend.itemGap) - legend.itemGap + legend.padding * 2;
+    const boxHeight =
+      items.length * (legend.swatchSize + legend.itemGap) -
+      legend.itemGap +
+      legend.padding * 2;
 
     // Calculate position
     let x: number, y: number;
     switch (legend.position) {
-      case 'top-left':
+      case "top-left":
         x = plotArea.x + 10;
         y = plotArea.y + 10;
         break;
-      case 'bottom-left':
+      case "bottom-left":
         x = plotArea.x + 10;
-        y = plotArea.y + plotArea.height - boxHeight - 10;
+        y = plotArea.y + 10;
         break;
-      case 'bottom-right':
+      case "bottom-right":
         x = plotArea.x + plotArea.width - boxWidth - 10;
         y = plotArea.y + plotArea.height - boxHeight - 10;
         break;
-      case 'top-right':
+      case "top-right":
       default:
         x = plotArea.x + plotArea.width - boxWidth - 10;
         y = plotArea.y + 10;
@@ -314,20 +301,36 @@ export class OverlayRenderer {
     ctx.strokeStyle = legend.borderColor;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(x, y, boxWidth, boxHeight, legend.borderRadius);
+    const r = legend.borderRadius;
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + boxWidth - r, y);
+    ctx.arcTo(x + boxWidth, y, x + boxWidth, y + r, r);
+    ctx.lineTo(x + boxWidth, y + boxHeight - r);
+    ctx.arcTo(x + boxWidth, y + boxHeight, x + boxWidth - r, y + boxHeight, r);
+    ctx.lineTo(x + r, y + boxHeight);
+    ctx.arcTo(x, y + boxHeight, x, y + boxHeight - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
     // Draw items
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
 
     items.forEach((item, i) => {
-      const itemY = y + legend.padding + i * (legend.swatchSize + legend.itemGap);
+      const itemY =
+        y + legend.padding + i * (legend.swatchSize + legend.itemGap);
 
       // Color swatch
       ctx.fillStyle = item.color;
-      ctx.fillRect(x + legend.padding, itemY, legend.swatchSize, legend.swatchSize);
+      ctx.fillRect(
+        x + legend.padding,
+        itemY,
+        legend.swatchSize,
+        legend.swatchSize
+      );
 
       // Label
       ctx.fillStyle = legend.textColor;
@@ -409,7 +412,7 @@ export class OverlayRenderer {
   ): void {
     const { ctx } = this;
     const cursor = this.theme.cursor;
-    const lines = text.split('\n');
+    const lines = text.split("\n");
     const lineHeight = cursor.tooltipSize + 5;
     const padding = 8;
 
@@ -438,32 +441,55 @@ export class OverlayRenderer {
     ctx.strokeStyle = cursor.tooltipBorder;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(tooltipX, tooltipY, boxWidth, boxHeight, 4);
+    const r = 4;
+    ctx.moveTo(tooltipX + r, tooltipY);
+    ctx.lineTo(tooltipX + boxWidth - r, tooltipY);
+    ctx.arcTo(tooltipX + boxWidth, tooltipY, tooltipX + boxWidth, tooltipY + r, r);
+    ctx.lineTo(tooltipX + boxWidth, tooltipY + boxHeight - r);
+    ctx.arcTo(tooltipX + boxWidth, tooltipY + boxHeight, tooltipX + boxWidth - r, tooltipY + boxHeight, r);
+    ctx.lineTo(tooltipX + r, tooltipY + boxHeight);
+    ctx.arcTo(tooltipX, tooltipY + boxHeight, tooltipX, tooltipY + boxHeight - r, r);
+    ctx.lineTo(tooltipX, tooltipY + r);
+    ctx.arcTo(tooltipX, tooltipY, tooltipX + r, tooltipY, r);
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
     // Text
     ctx.fillStyle = cursor.tooltipColor;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
     lines.forEach((line, i) => {
-      ctx.fillText(line, tooltipX + padding, tooltipY + padding + i * lineHeight);
+      ctx.fillText(
+        line,
+        tooltipX + padding,
+        tooltipY + padding + i * lineHeight
+      );
     });
   }
 
   /**
    * Draw selection rectangle (Box Zoom)
    */
-  drawSelectionRect(rect: { x: number; y: number; width: number; height: number }): void {
+  drawSelectionRect(rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }): void {
     const { ctx } = this;
-    const isDark = this.theme.name.toLowerCase().includes('dark') || this.theme.name.toLowerCase().includes('midnight');
-    
+    const isDark =
+      this.theme.name.toLowerCase().includes("dark") ||
+      this.theme.name.toLowerCase().includes("midnight");
+
     ctx.save();
-    ctx.fillStyle = isDark ? 'rgba(0, 170, 255, 0.15)' : 'rgba(0, 100, 255, 0.1)';
-    ctx.strokeStyle = '#00aaff';
+    ctx.fillStyle = isDark
+      ? "rgba(0, 170, 255, 0.15)"
+      : "rgba(0, 100, 255, 0.1)";
+    ctx.strokeStyle = "#00aaff";
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 5]);
-    
+
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.width, rect.height);
     ctx.fill();
@@ -475,17 +501,10 @@ export class OverlayRenderer {
   // Helper Methods
   // ----------------------------------------
 
-  private dataToPixelX(value: number, bounds: Bounds, plotArea: PlotArea): number {
-    const normalized = (value - bounds.xMin) / (bounds.xMax - bounds.xMin);
-    return plotArea.x + normalized * plotArea.width;
-  }
-
-  private dataToPixelY(value: number, bounds: Bounds, plotArea: PlotArea): number {
-    const normalized = (value - bounds.yMin) / (bounds.yMax - bounds.yMin);
-    return plotArea.y + plotArea.height * (1 - normalized);
-  }
-
-  private generateMinorTicks(majorTicks: number[], divisions: number): number[] {
+  private generateMinorTicks(
+    majorTicks: number[],
+    divisions: number
+  ): number[] {
     if (majorTicks.length < 2) return [];
 
     const minor: number[] = [];
@@ -502,11 +521,11 @@ export class OverlayRenderer {
     if (Math.abs(value) < 0.001 && value !== 0) {
       return this.toScientificUnicode(value, 1);
     }
-    return value.toFixed(3).replace(/\.?0+$/, '');
+    return value.toFixed(3).replace(/\.?0+$/, "");
   }
 
   private formatYTick(value: number): string {
-    if (value === 0) return '0';
+    if (value === 0) return "0";
     const absVal = Math.abs(value);
     if (absVal < 0.0001 || absVal >= 10000) {
       return this.toScientificUnicode(value, 1);
@@ -516,17 +535,29 @@ export class OverlayRenderer {
 
   private toScientificUnicode(value: number, precision: number): string {
     const str = value.toExponential(precision);
-    const [mantissa, exponent] = str.split('e');
-    
+    const [mantissa, exponent] = str.split("e");
+
     // Convert exponent to unicode superscripts
     const superscriptMap: Record<string, string> = {
-      '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
-      '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
-      '-': '⁻', '+': '⁺'
+      "0": "⁰",
+      "1": "¹",
+      "2": "²",
+      "3": "³",
+      "4": "⁴",
+      "5": "⁵",
+      "6": "⁶",
+      "7": "⁷",
+      "8": "⁸",
+      "9": "⁹",
+      "-": "⁻",
+      "+": "⁺",
     };
 
-    const unicodeExp = exponent.replace(/[0-9\-+]/g, (char) => superscriptMap[char] || char);
-    
+    const unicodeExp = exponent.replace(
+      /[0-9\-+]/g,
+      (char) => superscriptMap[char] || char
+    );
+
     // Return "1.2 × 10⁻⁵" format
     return `${mantissa} × 10${unicodeExp}`;
   }

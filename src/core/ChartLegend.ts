@@ -2,8 +2,8 @@
  * ChartLegend - In-chart draggable legend component
  */
 
-import { ChartTheme } from '../theme';
-import { Series } from './Series';
+import { ChartTheme } from "../theme";
+import { Series } from "./Series";
 
 export interface ChartLegendCallbacks {
   onMove: (x: number, y: number) => void;
@@ -23,15 +23,20 @@ export class ChartLegend {
   private initialX = 0;
   private initialY = 0;
 
-  constructor(parent: HTMLElement, theme: ChartTheme, options: { x?: number, y?: number }, callbacks: ChartLegendCallbacks) {
+  constructor(
+    parent: HTMLElement,
+    theme: ChartTheme,
+    options: { x?: number; y?: number },
+    callbacks: ChartLegendCallbacks
+  ) {
     this.theme = theme;
     this.callbacks = callbacks;
 
-    this.container = document.createElement('div');
-    this.container.className = 'scichart-legend';
-    
+    this.container = document.createElement("div");
+    this.container.className = "scichart-legend";
+
     // Default position (top-right with some margin)
-    const x = options.x ?? (parent.clientWidth - 150);
+    const x = options.x ?? parent.clientWidth - 150;
     const y = options.y ?? 20;
 
     this.container.style.cssText = `
@@ -51,15 +56,15 @@ export class ChartLegend {
     this.updateStyle();
 
     // Draggable header
-    this.header = document.createElement('div');
+    this.header = document.createElement("div");
     this.header.style.cssText = `
       height: 8px;
       cursor: move;
       background: rgba(255,255,255,0.05);
       border-bottom: 1px solid rgba(255,255,255,0.05);
     `;
-    
-    this.content = document.createElement('div');
+
+    this.content = document.createElement("div");
     this.content.style.padding = `${theme.legend.padding}px`;
 
     this.container.appendChild(this.header);
@@ -70,13 +75,25 @@ export class ChartLegend {
   }
 
   private updateStyle(): void {
-    const isDark = this.theme.name.toLowerCase().includes('dark') || this.theme.name.toLowerCase().includes('midnight');
-    const bg = this.theme.legend.backgroundColor;
-    const border = this.theme.legend.borderColor;
+    const isDark =
+      this.theme.name.toLowerCase().includes("dark") ||
+      this.theme.name.toLowerCase().includes("midnight") ||
+      this.theme.name.toLowerCase().includes("electro");
 
-    this.container.style.background = isDark ? bg : 'rgba(255, 255, 255, 0.85)';
-    this.container.style.backdropFilter = 'blur(10px)';
-    this.container.style.border = `1px solid ${border}`;
+    const bg = isDark ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.95)";
+    const borderColor = isDark
+      ? "rgba(255, 255, 255, 0.15)"
+      : "rgba(0, 0, 0, 0.1)";
+    const shadow = isDark
+      ? "0 4px 12px rgba(0, 0, 0, 0.6)"
+      : "0 4px 12px rgba(0, 0, 0, 0.15)";
+
+    this.container.style.background = bg;
+    this.container.style.backdropFilter = "blur(12px) saturate(180%)";
+    (this.container.style as any).webkitBackdropFilter =
+      "blur(12px) saturate(180%)";
+    this.container.style.border = `1px solid ${borderColor}`;
+    this.container.style.boxShadow = shadow;
   }
 
   private initDragging(): void {
@@ -94,27 +111,33 @@ export class ChartLegend {
       this.startY = e.clientY;
       this.initialX = this.container.offsetLeft;
       this.initialY = this.container.offsetTop;
-      
-      this.container.style.transition = 'none';
-      this.container.style.willChange = 'transform';
-      this.container.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3)';
-      this.container.style.cursor = 'grabbing';
-      
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
+
+      this.container.style.transition = "none";
+      this.container.style.willChange = "transform";
+      this.container.style.boxShadow = "0 8px 24px rgba(0,0,0,0.3)";
+      this.container.style.cursor = "grabbing";
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
     };
 
     const updatePosition = (clientX: number, clientY: number) => {
       const dx = clientX - this.startX;
       const dy = clientY - this.startY;
-      
+
       let newX = this.initialX + dx;
       let newY = this.initialY + dy;
 
       const parent = this.container.parentElement;
       if (parent) {
-        newX = Math.max(0, Math.min(newX, parent.clientWidth - this.container.clientWidth));
-        newY = Math.max(0, Math.min(newY, parent.clientHeight - this.container.clientHeight));
+        newX = Math.max(
+          0,
+          Math.min(newX, parent.clientWidth - this.container.clientWidth)
+        );
+        newY = Math.max(
+          0,
+          Math.min(newY, parent.clientHeight - this.container.clientHeight)
+        );
       }
 
       // Use transform for better performance (no layout recalc)
@@ -133,36 +156,37 @@ export class ChartLegend {
       if (this.isDragging) {
         this.isDragging = false;
         if (rafId) cancelAnimationFrame(rafId);
-        
+
         // Finalize position and commit to left/top (to keep it there)
         const rect = this.container.getBoundingClientRect();
-        const parentRect = this.container.parentElement?.getBoundingClientRect();
+        const parentRect =
+          this.container.parentElement?.getBoundingClientRect();
         if (parentRect) {
           const finalX = rect.left - parentRect.left;
           const finalY = rect.top - parentRect.top;
-          
-          this.container.style.transform = 'none';
+
+          this.container.style.transform = "none";
           this.container.style.left = `${finalX}px`;
           this.container.style.top = `${finalY}px`;
-          
+
           this.callbacks.onMove(finalX, finalY);
         }
 
-        this.container.style.willChange = 'auto';
-        this.container.style.transition = 'box-shadow 0.2s ease';
-        this.container.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-        this.container.style.cursor = 'auto';
+        this.container.style.willChange = "auto";
+        this.container.style.transition = "box-shadow 0.2s ease";
+        this.container.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+        this.container.style.cursor = "auto";
       }
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
     };
 
-    this.container.addEventListener('mousedown', onMouseDown);
+    this.container.addEventListener("mousedown", onMouseDown);
 
     // Block events from reaching the chart while over the legend
-    this.container.addEventListener('wheel', (e) => e.stopPropagation());
-    this.container.addEventListener('click', (e) => e.stopPropagation());
-    this.container.addEventListener('dblclick', (e) => e.stopPropagation());
+    this.container.addEventListener("wheel", (e) => e.stopPropagation());
+    this.container.addEventListener("click", (e) => e.stopPropagation());
+    this.container.addEventListener("dblclick", (e) => e.stopPropagation());
     // Note: mousemove/mouseup on container MUST bubble to document during drag
   }
 
@@ -172,11 +196,11 @@ export class ChartLegend {
   }
 
   private render(): void {
-    this.content.innerHTML = '';
+    this.content.innerHTML = "";
     const legend = this.theme.legend;
 
     this.series.forEach((s) => {
-      const item = document.createElement('div');
+      const item = document.createElement("div");
       item.style.cssText = `
         display: flex;
         align-items: center;
@@ -187,15 +211,15 @@ export class ChartLegend {
         color: ${legend.textColor};
       `;
 
-      const swatch = document.createElement('div');
+      const swatch = document.createElement("div");
       swatch.style.cssText = `
         width: ${legend.swatchSize}px;
         height: ${legend.swatchSize}px;
-        background: ${s.getStyle().color || '#ff0055'};
+        background: ${s.getStyle().color || "#ff0055"};
         border-radius: 2px;
       `;
 
-      const label = document.createElement('span');
+      const label = document.createElement("span");
       label.textContent = s.getId();
 
       item.appendChild(swatch);
@@ -212,7 +236,7 @@ export class ChartLegend {
     const itemGap = legend.itemGap * dpr;
     const swatchSize = legend.swatchSize * dpr;
     const headerHeight = 8 * dpr; // Matching the 8px header in constructor
-    
+
     // Get current position in pixels
     const x = this.container.offsetLeft * dpr;
     const y = this.container.offsetTop * dpr;
@@ -220,13 +244,17 @@ export class ChartLegend {
     const height = this.container.clientHeight * dpr;
 
     ctx.save();
-    
+
     // 1. Draw background
-    const isDark = this.theme.name.toLowerCase().includes('dark') || this.theme.name.toLowerCase().includes('midnight');
-    ctx.fillStyle = isDark ? legend.backgroundColor : 'rgba(255, 255, 255, 0.85)';
+    const isDark =
+      this.theme.name.toLowerCase().includes("dark") ||
+      this.theme.name.toLowerCase().includes("midnight");
+    ctx.fillStyle = isDark
+      ? legend.backgroundColor
+      : "rgba(255, 255, 255, 0.85)";
     ctx.strokeStyle = legend.borderColor;
     ctx.lineWidth = 1 * dpr;
-    
+
     const r = legend.borderRadius * dpr;
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -243,23 +271,28 @@ export class ChartLegend {
     ctx.stroke();
 
     // 2. Draw Items
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
     ctx.font = `${legend.fontSize * dpr}px ${legend.fontFamily}`;
 
     this.series.forEach((s, i) => {
       // Offset by headerHeight and padding
-      const itemY = y + headerHeight + padding + i * (swatchSize + itemGap) + swatchSize / 2;
-      
+      const itemY =
+        y +
+        headerHeight +
+        padding +
+        i * (swatchSize + itemGap) +
+        swatchSize / 2;
+
       // Swatch
-      ctx.fillStyle = s.getStyle().color || '#ff0055';
+      ctx.fillStyle = s.getStyle().color || "#ff0055";
       ctx.fillRect(x + padding, itemY - swatchSize / 2, swatchSize, swatchSize);
 
       // Label
       ctx.fillStyle = legend.textColor;
       ctx.fillText(s.getId(), x + padding + swatchSize + 8 * dpr, itemY);
     });
-    
+
     ctx.restore();
   }
 
