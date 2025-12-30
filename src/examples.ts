@@ -5,30 +5,30 @@
  * for electrochemical data visualization.
  */
 
-import { createChart } from './index';
-import { formatCurrent, formatPotential, detectCycles } from './electrochemistry';
+import { createChart } from "./index";
+import { formatWithPrefix, detectCycles } from "./analysis";
 
 /**
  * Example: Basic CV Plot
  */
 export function exampleBasicCV() {
   // Get canvas element
-  const canvas = document.getElementById('chart') as HTMLCanvasElement;
+  const container = document.getElementById("chart") as HTMLDivElement;
 
   // Create chart instance
   const chart = createChart({
-    canvas,
+    container,
     xAxis: {
-      scale: 'linear',
-      label: 'E / V',
+      scale: "linear",
+      label: "E / V",
       auto: true,
     },
     yAxis: {
-      scale: 'linear',
-      label: 'I / A',
+      scale: "linear",
+      label: "I / A",
       auto: true,
     },
-    background: '#1a1a2e',
+    background: "#1a1a2e",
   });
 
   // Generate sample CV data (simulated)
@@ -52,7 +52,8 @@ export function exampleBasicCV() {
     const peakCurrent = 1e-5 * Math.sqrt(scanRate);
 
     const diff = x[i] - peakPotential;
-    y[i] = peakCurrent * Math.exp(-(diff * diff) / (2 * gaussWidth * gaussWidth));
+    y[i] =
+      peakCurrent * Math.exp(-(diff * diff) / (2 * gaussWidth * gaussWidth));
 
     // Add some noise
     y[i] += (Math.random() - 0.5) * 1e-7;
@@ -60,24 +61,27 @@ export function exampleBasicCV() {
 
   // Add series to chart
   chart.addSeries({
-    id: 'cv-forward',
-    type: 'line',
+    id: "cv-forward",
+    type: "line",
     data: { x, y },
     style: {
-      color: '#ff0055',
+      color: "#ff0055",
       width: 1.5,
     },
   });
 
   // Listen to events
-  chart.on('zoom', (range) => {
-    console.log('Zoom:', range);
+  chart.on("zoom", (range) => {
+    console.log("Zoom:", range);
   });
 
-  chart.on('hover', (point) => {
+  chart.on("hover", (point) => {
     if (point) {
       console.log(
-        `Hover: ${formatPotential(point.point.x)}, ${formatCurrent(point.point.y)}`
+        `Hover: ${formatWithPrefix(point.point.x, "V")}, ${formatWithPrefix(
+          point.point.y,
+          "A"
+        )}`
       );
     }
   });
@@ -87,7 +91,7 @@ export function exampleBasicCV() {
     snap: true,
     crosshair: true,
     formatter: (xVal, yVal) =>
-      `E = ${formatPotential(xVal)}\nI = ${formatCurrent(yVal)}`,
+      `E = ${formatWithPrefix(xVal, "V")}\nI = ${formatWithPrefix(yVal, "A")}`,
   });
 
   return chart;
@@ -97,23 +101,23 @@ export function exampleBasicCV() {
  * Example: Streaming data (real-time)
  */
 export function exampleStreaming() {
-  const canvas = document.getElementById('chart') as HTMLCanvasElement;
+  const container = document.getElementById("chart") as HTMLDivElement;
 
   const chart = createChart({
-    canvas,
-    xAxis: { label: 'Time / s' },
-    yAxis: { label: 'I / A' },
+    container,
+    xAxis: { label: "Time / s" },
+    yAxis: { label: "I / A" },
   });
 
   // Initial empty series
   chart.addSeries({
-    id: 'realtime',
-    type: 'line',
+    id: "realtime",
+    type: "line",
     data: {
       x: new Float32Array(0),
       y: new Float32Array(0),
     },
-    style: { color: '#00ff88' },
+    style: { color: "#00ff88" },
   });
 
   // Simulate streaming data
@@ -130,7 +134,7 @@ export function exampleStreaming() {
     }
 
     // Append to existing data
-    chart.updateSeries('realtime', {
+    chart.updateSeries("realtime", {
       x: newX,
       y: newY,
       append: true,
@@ -148,12 +152,12 @@ export function exampleStreaming() {
  * Example: Multi-cycle CV with cycle detection
  */
 export function exampleMultiCycle() {
-  const canvas = document.getElementById('chart') as HTMLCanvasElement;
+  const container = document.getElementById("chart") as HTMLDivElement;
 
   const chart = createChart({
-    canvas,
-    xAxis: { label: 'E / V' },
-    yAxis: { label: 'I / µA' },
+    container,
+    xAxis: { label: "E / V" },
+    yAxis: { label: "I / µA" },
   });
 
   // Generate 3-cycle CV data
@@ -187,10 +191,10 @@ export function exampleMultiCycle() {
 
   // Detect cycles automatically
   const cycles = detectCycles(x);
-  console.log('Detected cycles:', cycles);
+  console.log("Detected cycles:", cycles);
 
   // Add each cycle as separate series
-  const colors = ['#ff0055', '#00ff88', '#00aaff'];
+  const colors = ["#ff0055", "#00ff88", "#00aaff"];
 
   cycles.forEach((cycle, idx) => {
     const cycleX = x.slice(cycle.startIndex, cycle.endIndex + 1);
@@ -198,7 +202,7 @@ export function exampleMultiCycle() {
 
     chart.addSeries({
       id: `cycle-${cycle.number}`,
-      type: 'line',
+      type: "line",
       data: { x: cycleX, y: cycleY },
       style: { color: colors[idx % colors.length] },
       cycle: cycle.number,
@@ -219,12 +223,12 @@ export function exampleZoomControls(chart: ReturnType<typeof createChart>) {
   });
 
   // Reset zoom
-  document.getElementById('reset-zoom')?.addEventListener('click', () => {
+  document.getElementById("reset-zoom")?.addEventListener("click", () => {
     chart.resetZoom();
   });
 
   // Zoom in button
-  document.getElementById('zoom-in')?.addEventListener('click', () => {
+  document.getElementById("zoom-in")?.addEventListener("click", () => {
     const bounds = chart.getViewBounds();
     const xCenter = (bounds.xMin + bounds.xMax) / 2;
     const yCenter = (bounds.yMin + bounds.yMax) / 2;
