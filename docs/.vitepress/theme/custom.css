@@ -1,0 +1,31 @@
+/* Custom styles for SciChart Engine docs */
+
+:root {
+  --vp-c-brand: #00f2ff;
+  --vp-c-brand-light: #33f5ff;
+  --vp-c-brand-dark: #00c4cc;
+}
+
+.dark {
+  --vp-c-brand: #00f2ff;
+  --vp-c-brand-light: #33f5ff;
+  --vp-c-brand-dark: #00c4cc;
+}
+
+/* Code blocks */
+.vp-doc div[class*='language-'] {
+  border-radius: 8px;
+}
+
+/* Tables */
+.vp-doc table {
+  width: 100%;
+}
+
+/* Hero section */
+.VPHero .name {
+  background: linear-gradient(135deg, #00f2ff 0%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
