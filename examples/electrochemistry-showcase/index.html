@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SciChart Engine - Electrochemistry Showcase</title>
+    <style>
+        body {
+            margin: 0;
+            background: #0b0e14;
+            color: white;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #controls {
+            padding: 15px 25px;
+            background: #0d1117;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        #chart-container {
+            flex: 1;
+            position: relative;
+            background: #0b0e14;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #30363d;
+            border-color: #8b949e;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #btn-cv {
+            background: #238636;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #btn-cv:hover {
+            background: #2ea043;
+        }
+
+        #btn-peaks {
+            background: #1f6feb;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #btn-peaks:hover {
+            background: #388bfd;
+        }
+
+        .stat {
+            color: #8b949e;
+            font-size: 14px;
+        }
+
+        .stat b {
+            color: #58a6ff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="controls">
+        <h2 style="margin:0; font-size: 18px; color: #f0f6fc; margin-right: 10px;">Electrochemistry Showcase</h2>
+        <button id="btn-cv">🧪 Simulate CV</button>
+        <button id="btn-peaks">📈 Detect Peaks</button>
+        <div class="stat" style="margin-left: 10px;">Cycles: <b id="cycle-count">0</b></div>
+        <div class="stat">Points: <b id="point-count">0</b></div>
+    </div>
+    <div id="chart-container"></div>
+
+    <script type="module">
+        import { createChart } from '../../src/core/Chart.ts';
+        import { detectCycles, generateCycleColors, detectPeaks, formatWithPrefix } from '../../src/analysis/utils.ts';
+
+        const container = document.getElementById('chart-container');
+        const chart = createChart({
+            container,
+            title: 'Cyclic Voltammetry Analysis',
+            xAxis: { label: 'Potential / V', auto: true },
+            yAxis: { label: 'Current / A', auto: true },
+            showControls: true,
+            showLegend: true,
+            theme: 'electrochemistry'
+        });
+
+        function simulateCV() {
+            const n = 2000;
+            const x = new Float32Array(n);
+            const y = new Float32Array(n);
+
+            for (let i = 0; i < n; i++) {
+                const phase = (i / n) * Math.PI * 6; // 3 full cycles
+                x[i] = Math.sin(phase);
+                // Simulated current with some peaks
+                y[i] = Math.cos(phase) * 0.1 + Math.exp(-Math.pow(x[i] - 0.5, 2) / 0.01) * 0.05 - Math.exp(-Math.pow(x[i] + 0.5, 2) / 0.01) * 0.05 + (Math.random() - 0.5) * 0.005;
+            }
+
+            const cycles = detectCycles(x);
+            const colors = generateCycleColors(cycles.length);
+
+            // Clear existing series
+            chart.getAllSeries().forEach(s => chart.removeSeries(s.getId()));
+
+            cycles.forEach((cycle, i) => {
+                chart.addSeries({
+                    id: `cycle-${cycle.number}`,
+                    name: `Cycle ${cycle.number}`,
+                    type: 'line',
+                    data: {
+                        x: x.slice(cycle.startIndex, cycle.endIndex),
+                        y: y.slice(cycle.startIndex, cycle.endIndex)
+                    },
+                    style: { color: colors[i], width: 2 }
+                });
+            });
+
+            document.getElementById('cycle-count').textContent = cycles.length;
+            document.getElementById('point-count').textContent = n;
+            chart.autoScale();
+
+            window.lastData = { x, y };
+        }
+
+        document.getElementById('btn-cv').onclick = simulateCV;
+
+        document.getElementById('btn-peaks').onclick = () => {
+            if (!window.lastData) return;
+            const { x, y } = window.lastData;
+            const peaks = detectPeaks(x, y, { minProminence: 0.02 });
+
+            chart.addSeries({
+                id: 'peaks',
+                name: 'Detected Peaks',
+                type: 'scatter',
+                data: {
+                    x: new Float32Array(peaks.map(p => p.x)),
+                    y: new Float32Array(peaks.map(p => p.y))
+                },
+                style: { color: '#ffea00', pointSize: 8 }
+            });
+        };
+
+        // Initial simulation
+        simulateCV();
+    </script>
+</body>
+
+</html>
