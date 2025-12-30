@@ -11,10 +11,15 @@ import {
   forwardRef,
   useMemo,
   type CSSProperties,
-} from 'react';
-import { useSciChart, type UseSciChartOptions } from './useSciChart';
-import type { SeriesOptions, ZoomOptions, CursorOptions, Bounds } from '../types';
-import type { Chart } from '../core/Chart';
+} from "react";
+import { useSciChart, type UseSciChartOptions } from "./useSciChart";
+import type {
+  SeriesOptions,
+  ZoomOptions,
+  CursorOptions,
+  Bounds,
+} from "../types";
+import type { Chart } from "../core/Chart";
 
 // ============================================
 // Types
@@ -80,173 +85,172 @@ export interface SciChartRef {
  * />
  * ```
  */
-export const SciChart = forwardRef<SciChartRef, SciChartProps>(function SciChart(
-  {
-    series = [],
-    zoom: zoomProp,
-    onZoomChange,
-    cursor,
-    width = '100%',
-    height = 400,
-    className = '',
-    style = {},
-    debug = false,
-    ...chartOptions
-  },
-  ref
-) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const previousSeriesRef = useRef<Map<string, SciChartSeries>>(new Map());
+export const SciChart = forwardRef<SciChartRef, SciChartProps>(
+  function SciChart(
+    {
+      series = [],
+      zoom: zoomProp,
+      onZoomChange,
+      cursor,
+      width = "100%",
+      height = 400,
+      className = "",
+      style = {},
+      debug = false,
+      ...chartOptions
+    },
+    ref
+  ) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const previousSeriesRef = useRef<Map<string, SciChartSeries>>(new Map());
 
-  const {
-    chart,
-    isReady,
-    bounds,
-    addSeries,
-    updateSeries,
-    removeSeries,
-    resetZoom,
-  } = useSciChart(canvasRef, chartOptions);
-
-  // Expose methods via ref
-  useImperativeHandle(
-    ref,
-    () => ({
-      getChart: () => chart,
+    const {
+      chart,
+      isReady,
+      bounds,
+      addSeries,
+      updateSeries,
+      removeSeries,
       resetZoom,
-      getBounds: () => bounds,
-    }),
-    [chart, resetZoom, bounds]
-  );
+    } = useSciChart(containerRef, chartOptions);
 
-  // Handle series changes
-  useEffect(() => {
-    if (!isReady || !chart) return;
+    // Expose methods via ref
+    useImperativeHandle(
+      ref,
+      () => ({
+        getChart: () => chart,
+        resetZoom,
+        getBounds: () => bounds,
+      }),
+      [chart, resetZoom, bounds]
+    );
 
-    const currentSeriesMap = new Map(series.map((s) => [s.id, s]));
-    const previousSeriesMap = previousSeriesRef.current;
+    // Handle series changes
+    useEffect(() => {
+      if (!isReady || !chart) return;
 
-    // Remove series that no longer exist
-    previousSeriesMap.forEach((_, id) => {
-      if (!currentSeriesMap.has(id)) {
-        removeSeries(id);
-      }
-    });
+      const currentSeriesMap = new Map(series.map((s) => [s.id, s]));
+      const previousSeriesMap = previousSeriesRef.current;
 
-    // Add or update series
-    currentSeriesMap.forEach((seriesData, id) => {
-      const prevSeries = previousSeriesMap.get(id);
-
-      if (!prevSeries) {
-        // New series - add it
-        const options: SeriesOptions = {
-          id: seriesData.id,
-          type: 'line',
-          data: { x: seriesData.x, y: seriesData.y },
-          style: {
-            color: seriesData.color ?? '#ff0055',
-            width: seriesData.width ?? 1.5,
-          },
-          visible: seriesData.visible ?? true,
-        };
-        addSeries(options);
-      } else if (
-        prevSeries.x !== seriesData.x ||
-        prevSeries.y !== seriesData.y
-      ) {
-        // Data changed - update
-        updateSeries(id, {
-          x: seriesData.x,
-          y: seriesData.y,
-        });
-      }
-    });
-
-    previousSeriesRef.current = currentSeriesMap;
-  }, [series, isReady, chart, addSeries, updateSeries, removeSeries]);
-
-  // Handle controlled zoom
-  useEffect(() => {
-    if (!isReady || !chart || !zoomProp) return;
-    chart.zoom(zoomProp);
-  }, [isReady, chart, zoomProp]);
-
-  // Handle zoom change callback
-  useEffect(() => {
-    if (!isReady || !chart || !onZoomChange) return;
-
-    chart.on('zoom', (event) => {
-      onZoomChange({
-        xMin: event.x[0],
-        xMax: event.x[1],
-        yMin: event.y[0],
-        yMax: event.y[1],
+      // Remove series that no longer exist
+      previousSeriesMap.forEach((_, id) => {
+        if (!currentSeriesMap.has(id)) {
+          removeSeries(id);
+        }
       });
-    });
-  }, [isReady, chart, onZoomChange]);
 
-  // Handle cursor
-  useEffect(() => {
-    if (!isReady || !chart) return;
+      // Add or update series
+      currentSeriesMap.forEach((seriesData, id) => {
+        const prevSeries = previousSeriesMap.get(id);
 
-    if (cursor?.enabled) {
-      chart.enableCursor(cursor);
-    } else {
-      chart.disableCursor();
-    }
-  }, [isReady, chart, cursor]);
+        if (!prevSeries) {
+          // New series - add it
+          const options: SeriesOptions = {
+            id: seriesData.id,
+            type: "line",
+            data: { x: seriesData.x, y: seriesData.y },
+            style: {
+              color: seriesData.color ?? "#ff0055",
+              width: seriesData.width ?? 1.5,
+            },
+            visible: seriesData.visible ?? true,
+          };
+          addSeries(options);
+          // Force an initial autoscale if it's the first series
+          if (currentSeriesMap.size === 1) {
+            chart.autoScale();
+          }
+        } else if (
+          prevSeries.x !== seriesData.x ||
+          prevSeries.y !== seriesData.y
+        ) {
+          // Data changed - update
+          updateSeries(id, {
+            x: seriesData.x,
+            y: seriesData.y,
+          });
+        }
+      });
 
-  // Container styles
-  const containerStyle = useMemo<CSSProperties>(
-    () => ({
-      position: 'relative',
-      width: typeof width === 'number' ? `${width}px` : width,
-      height: typeof height === 'number' ? `${height}px` : height,
-      ...style,
-    }),
-    [width, height, style]
-  );
+      previousSeriesRef.current = currentSeriesMap;
+    }, [series, isReady, chart, addSeries, updateSeries, removeSeries]);
 
-  const canvasStyle = useMemo<CSSProperties>(
-    () => ({
-      width: '100%',
-      height: '100%',
-      display: 'block',
-    }),
-    []
-  );
+    // Handle controlled zoom
+    useEffect(() => {
+      if (!isReady || !chart || !zoomProp) return;
+      chart.zoom(zoomProp);
+    }, [isReady, chart, zoomProp]);
 
-  return (
-    <div
-      ref={containerRef}
-      className={`scichart-container ${className}`}
-      style={containerStyle}
-    >
-      <canvas ref={canvasRef} style={canvasStyle} />
+    // Handle zoom change callback
+    useEffect(() => {
+      if (!isReady || !chart || !onZoomChange) return;
 
-      {/* Debug overlay */}
-      {debug && bounds && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            background: 'rgba(0,0,0,0.7)',
-            color: '#0f0',
-            padding: '4px 8px',
-            borderRadius: 4,
-            fontSize: 11,
-            fontFamily: 'monospace',
-          }}
-        >
-          <div>X: [{bounds.xMin.toFixed(3)}, {bounds.xMax.toFixed(3)}]</div>
-          <div>Y: [{bounds.yMin.toExponential(2)}, {bounds.yMax.toExponential(2)}]</div>
-          <div>Series: {series.length}</div>
-        </div>
-      )}
-    </div>
-  );
-});
+      chart.on("zoom", (event) => {
+        onZoomChange({
+          xMin: event.x[0],
+          xMax: event.x[1],
+          yMin: event.y[0],
+          yMax: event.y[1],
+        });
+      });
+    }, [isReady, chart, onZoomChange]);
+
+    // Handle cursor
+    useEffect(() => {
+      if (!isReady || !chart) return;
+
+      if (cursor?.enabled) {
+        chart.enableCursor(cursor);
+      } else {
+        chart.disableCursor();
+      }
+    }, [isReady, chart, cursor]);
+
+    // Container styles
+    const containerStyle = useMemo<CSSProperties>(
+      () => ({
+        position: "relative",
+        width: typeof width === "number" ? `${width}px` : width,
+        height: typeof height === "number" ? `${height}px` : height,
+        ...style,
+      }),
+      [width, height, style]
+    );
+
+    return (
+      <div
+        ref={containerRef}
+        className={`scichart-container ${className}`}
+        style={containerStyle}
+      >
+        {/* Debug overlay */}
+        {debug && bounds && (
+          <div
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "rgba(0,0,0,0.7)",
+              color: "#0f0",
+              padding: "4px 8px",
+              borderRadius: 4,
+              fontSize: 11,
+              fontFamily: "monospace",
+            }}
+          >
+            <div>
+              X: [{bounds.xMin.toFixed(3)}, {bounds.xMax.toFixed(3)}]
+            </div>
+            <div>
+              Y: [{bounds.yMin.toExponential(2)}, {bounds.yMax.toExponential(2)}
+              ]
+            </div>
+            <div>Series: {series.length}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+);
 
 export default SciChart;

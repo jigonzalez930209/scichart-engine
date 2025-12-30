@@ -4,11 +4,22 @@
  * Manages chart lifecycle and provides a clean React API.
  */
 
-import { useEffect, useRef, useState, useCallback, type RefObject } from 'react';
-import { createChart, type Chart, type ChartOptions } from '../core/Chart';
-import type { SeriesOptions, SeriesUpdateData, ZoomOptions, Bounds } from '../types';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type RefObject,
+} from "react";
+import { createChart, type Chart, type ChartOptions } from "../core/Chart";
+import type {
+  SeriesOptions,
+  SeriesUpdateData,
+  ZoomOptions,
+  Bounds,
+} from "../types";
 
-export interface UseSciChartOptions extends Omit<ChartOptions, 'canvas'> {
+export interface UseSciChartOptions extends Omit<ChartOptions, "container"> {
   /** Auto-resize on container changes */
   autoResize?: boolean;
 }
@@ -62,7 +73,7 @@ export interface UseSciChartReturn {
  * ```
  */
 export function useSciChart(
-  canvasRef: RefObject<HTMLCanvasElement>,
+  containerRef: RefObject<HTMLDivElement>,
   options: UseSciChartOptions = {}
 ): UseSciChartReturn {
   const [chart, setChart] = useState<Chart | null>(null);
@@ -76,17 +87,17 @@ export function useSciChart(
 
   // Initialize chart
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     try {
       const chartInstance = createChart({
-        canvas,
         ...optionsRef.current,
+        container,
       });
 
       // Listen to zoom events to update bounds
-      chartInstance.on('zoom', () => {
+      chartInstance.on("zoom", () => {
         setBounds(chartInstance.getViewBounds());
       });
 
@@ -95,9 +106,9 @@ export function useSciChart(
       setBounds(chartInstance.getViewBounds());
       setError(null);
 
-      console.log('[useSciChart] Chart initialized');
+      console.log("[useSciChart] Chart initialized");
     } catch (err) {
-      console.error('[useSciChart] Failed to initialize chart:', err);
+      console.error("[useSciChart] Failed to initialize chart:", err);
       setError(err instanceof Error ? err : new Error(String(err)));
       setIsReady(false);
     }
@@ -110,7 +121,7 @@ export function useSciChart(
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canvasRef.current]);
+  }, [containerRef]);
 
   // Memoized methods
   const addSeries = useCallback(
