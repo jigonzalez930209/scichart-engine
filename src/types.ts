@@ -27,7 +27,7 @@ export type Range = [number, number];
 // Scale Types
 // ============================================
 
-export type ScaleType = 'linear' | 'log';
+export type ScaleType = "linear" | "log";
 
 export interface AxisOptions {
   /** Scale type */
@@ -37,7 +37,7 @@ export interface AxisOptions {
   /** Unit for formatting (e.g., 'V', 'A') */
   unit?: string;
   /** Unit prefix: 'auto' for automatic (µ, n, m, etc.) */
-  prefix?: 'auto' | 'µ' | 'n' | 'm' | '' | 'k' | 'M';
+  prefix?: "auto" | "µ" | "n" | "m" | "" | "k" | "M";
   /** Fixed minimum value */
   min?: number;
   /** Fixed maximum value */
@@ -50,7 +50,7 @@ export interface AxisOptions {
 // Series Types
 // ============================================
 
-export type SeriesType = 'line' | 'scatter' | 'line+scatter';
+export type SeriesType = "line" | "scatter" | "line+scatter";
 
 export interface SeriesData {
   /** X values (potential, time, etc.) */
@@ -101,8 +101,8 @@ export interface SeriesUpdateData {
 // ============================================
 
 export interface ChartOptions {
-  /** Target canvas element */
-  canvas: HTMLCanvasElement;
+  /** Target container element */
+  container: HTMLDivElement;
   /** X-axis configuration */
   xAxis?: AxisOptions;
   /** Y-axis configuration */
@@ -197,7 +197,7 @@ export interface Uniforms {
 
 /** Buffer configuration */
 export interface BufferConfig {
-  usage: 'static' | 'dynamic' | 'stream';
+  usage: "static" | "dynamic" | "stream";
   data: Float32Array;
 }
 

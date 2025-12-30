@@ -1,14 +1,14 @@
 /**
- * SciChart Engine - Scientific Charting for Electrochemistry
+ * SciChart Engine - High-Performance Scientific Charting
  *
- * A high-performance WebGL-based charting engine designed specifically
- * for electrochemical data visualization.
+ * A WebGL-based charting engine designed for scientific data visualization
+ * and high-performance rendering of large datasets.
  *
  * Features:
  * - 10⁵–10⁶ points at 60 FPS
  * - Zoom/pan via GPU uniforms (no buffer recreation)
  * - Scientific precision with Float32/Float64 arrays
- * - Domain-specific features for electrochemistry
+ * - Data analysis utilities (peak detection, cycle detection, etc.)
  *
  * @packageDocumentation
  */
@@ -96,18 +96,32 @@ export {
 } from './workers/downsample';
 
 // ============================================
-// Electrochemistry utilities
+// Data Analysis utilities
 // ============================================
 export {
   formatWithPrefix,
-  formatPotential,
-  formatCurrent,
+  formatValue,
+  formatScientific,
   getBestPrefix,
   detectCycles,
   generateCycleColors,
   detectPeaks,
   validateData,
-} from './electrochemistry';
+  calculateStats,
+  movingAverage,
+  downsampleLTTB,
+  type CycleInfo,
+  type Peak,
+  type PrefixInfo,
+  type ValidationResult,
+  type DataStats,
+} from './analysis';
+
+// Legacy exports for backward compatibility
+export {
+  formatWithPrefix as formatPotential,
+  formatWithPrefix as formatCurrent,
+} from './analysis';
 
 // ============================================
 // React bindings
