@@ -10,7 +10,7 @@ export interface Scale {
   /** Pixel range [min, max] */
   range: [number, number];
   /** Scale type identifier */
-  type: 'linear' | 'log';
+  type: "linear" | "log";
 
   /** Set the domain */
   setDomain(min: number, max: number): void;
@@ -32,9 +32,18 @@ export interface Scale {
 export class LinearScale implements Scale {
   public domain: [number, number] = [0, 1];
   public range: [number, number] = [0, 100];
-  public readonly type = 'linear' as const;
+  public readonly type = "linear" as const;
 
   setDomain(min: number, max: number): void {
+    // Ensure we have a valid, non-zero range
+    if (!isFinite(min) || !isFinite(max)) {
+      this.domain = [0, 1];
+      return;
+    }
+    if (min === max) {
+      this.domain = [min - 0.5, max + 0.5];
+      return;
+    }
     this.domain = [min, max];
   }
 
@@ -58,12 +67,18 @@ export class LinearScale implements Scale {
 
   ticks(count = 10): number[] {
     const [min, max] = this.domain;
+    if (!isFinite(min) || !isFinite(max) || min === max) return [];
+
     const step = niceStep(min, max, count);
     const start = Math.ceil(min / step) * step;
     const ticks: number[] = [];
 
-    for (let t = start; t <= max + step * 0.5; t += step) {
+    // Limit ticks to prevent infinite loops or performance issues
+    const maxTicks = 100;
+    let t = start;
+    while (t <= max + step * 0.5 && ticks.length < maxTicks) {
       ticks.push(Math.round(t * 1e12) / 1e12); // Fix floating point
+      t += step;
     }
 
     return ticks;
@@ -76,13 +91,20 @@ export class LinearScale implements Scale {
 export class LogScale implements Scale {
   public domain: [number, number] = [1, 1000];
   public range: [number, number] = [0, 100];
-  public readonly type = 'log' as const;
+  public readonly type = "log" as const;
 
   private base = 10;
 
   setDomain(min: number, max: number): void {
-    // Log scale requires positive values
-    this.domain = [Math.max(min, 1e-12), Math.max(max, 1e-12)];
+    // Log scale requires positive values and non-zero range
+    const safeMin = Math.max(min, 1e-12);
+    const safeMax = Math.max(max, 1e-12 * 10);
+
+    if (safeMin === safeMax) {
+      this.domain = [safeMin / 10, safeMax * 10];
+      return;
+    }
+    this.domain = [safeMin, safeMax];
   }
 
   setRange(min: number, max: number): void {
@@ -142,8 +164,9 @@ export class LogScale implements Scale {
  */
 function niceStep(min: number, max: number, count: number): number {
   const range = max - min;
-  const rawStep = range / count;
+  if (range <= 0 || !isFinite(range)) return 1;
 
+  const rawStep = range / count;
   const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
   const normalized = rawStep / magnitude;
 
@@ -164,6 +187,6 @@ function niceStep(min: number, max: number, count: number): number {
 /**
  * Factory function to create scale by type
  */
-export function createScale(type: 'linear' | 'log'): Scale {
-  return type === 'log' ? new LogScale() : new LinearScale();
+export function createScale(type: "linear" | "log"): Scale {
+  return type === "log" ? new LogScale() : new LinearScale();
 }
