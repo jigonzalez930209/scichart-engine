@@ -12,7 +12,7 @@
  * - Minimal state changes per frame
  */
 
-import type { Bounds, SeriesStyle } from '../types';
+import type { Bounds, SeriesStyle } from "../types";
 
 // ============================================
 // Types
@@ -24,7 +24,7 @@ export interface NativeSeriesRenderData {
   count: number;
   style: SeriesStyle;
   visible: boolean;
-  type: 'line' | 'scatter' | 'line+scatter';
+  type: "line" | "scatter" | "line+scatter";
 }
 
 export interface NativeRenderOptions {
@@ -120,15 +120,15 @@ export class NativeWebGLRenderer {
     this.dpr = window.devicePixelRatio || 1;
 
     // Get WebGL context
-    const gl = canvas.getContext('webgl', {
+    const gl = canvas.getContext("webgl", {
       alpha: true,
       antialias: true,
-      preserveDrawingBuffer: true,
-      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true, // Essential for on-demand rendering
+      powerPreference: "high-performance",
     });
 
     if (!gl) {
-      throw new Error('WebGL not supported');
+      throw new Error("WebGL not supported");
     }
 
     this.gl = gl;
@@ -142,7 +142,7 @@ export class NativeWebGLRenderer {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     this.isInitialized = true;
-    console.log('[NativeWebGL] Initialized successfully');
+    console.log("[NativeWebGL] Initialized successfully");
   }
 
   // ----------------------------------------
@@ -152,7 +152,7 @@ export class NativeWebGLRenderer {
   private createShader(source: string, type: number): WebGLShader {
     const { gl } = this;
     const shader = gl.createShader(type);
-    if (!shader) throw new Error('Failed to create shader');
+    if (!shader) throw new Error("Failed to create shader");
 
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
@@ -177,7 +177,7 @@ export class NativeWebGLRenderer {
     const fragShader = this.createShader(fragSource, gl.FRAGMENT_SHADER);
 
     const program = gl.createProgram();
-    if (!program) throw new Error('Failed to create program');
+    if (!program) throw new Error("Failed to create program");
 
     gl.attachShader(program, vertShader);
     gl.attachShader(program, fragShader);
@@ -193,13 +193,17 @@ export class NativeWebGLRenderer {
     gl.deleteShader(fragShader);
 
     // Get attribute and uniform locations
-    const positionAttr = gl.getAttribLocation(program, 'position');
-    const scaleUniform = gl.getUniformLocation(program, 'uScale');
-    const translateUniform = gl.getUniformLocation(program, 'uTranslate');
-    const colorUniform = gl.getUniformLocation(program, 'uColor');
+    const positionAttr = gl.getAttribLocation(program, "position");
+    const scaleUniform = gl.getUniformLocation(program, "uScale");
+    const translateUniform = gl.getUniformLocation(program, "uTranslate");
+    const colorUniform = gl.getUniformLocation(program, "uColor");
 
-    if (scaleUniform === null || translateUniform === null || colorUniform === null) {
-      throw new Error('Failed to get uniform locations');
+    if (
+      scaleUniform === null ||
+      translateUniform === null ||
+      colorUniform === null
+    ) {
+      throw new Error("Failed to get uniform locations");
     }
 
     const result: ShaderProgram = {
@@ -213,7 +217,8 @@ export class NativeWebGLRenderer {
     };
 
     if (hasPointSize) {
-      result.uniforms.uPointSize = gl.getUniformLocation(program, 'uPointSize') ?? undefined;
+      result.uniforms.uPointSize =
+        gl.getUniformLocation(program, "uPointSize") ?? undefined;
     }
 
     return result;
@@ -245,7 +250,7 @@ export class NativeWebGLRenderer {
         gl.deleteBuffer(buffer);
       }
       buffer = gl.createBuffer();
-      if (!buffer) throw new Error('Failed to create buffer');
+      if (!buffer) throw new Error("Failed to create buffer");
 
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
       gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
@@ -281,7 +286,10 @@ export class NativeWebGLRenderer {
   /**
    * Calculate uniforms for the current viewport
    */
-  private calculateUniforms(bounds: Bounds): { scale: [number, number]; translate: [number, number] } {
+  private calculateUniforms(bounds: Bounds): {
+    scale: [number, number];
+    translate: [number, number];
+  } {
     const dataWidth = bounds.xMax - bounds.xMin;
     const dataHeight = bounds.yMax - bounds.yMin;
 
@@ -308,23 +316,40 @@ export class NativeWebGLRenderer {
     const uniforms = this.calculateUniforms(bounds);
 
     // Clear with background color
-    gl.clearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
+    gl.clearColor(
+      backgroundColor[0],
+      backgroundColor[1],
+      backgroundColor[2],
+      backgroundColor[3]
+    );
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     // Render each series
     for (const s of series) {
       if (!s.visible || s.count === 0) continue;
 
-      const color = parseColor(s.style.color ?? '#ff0055');
+      const color = parseColor(s.style.color ?? "#ff0055");
       color[3] = s.style.opacity ?? 1;
 
-      if (s.type === 'scatter') {
-        this.renderPoints(s.buffer, s.count, uniforms, color, (s.style.pointSize ?? 4) * this.dpr);
-      } else if (s.type === 'line') {
+      if (s.type === "scatter") {
+        this.renderPoints(
+          s.buffer,
+          s.count,
+          uniforms,
+          color,
+          (s.style.pointSize ?? 4) * this.dpr
+        );
+      } else if (s.type === "line") {
         this.renderLine(s.buffer, s.count, uniforms, color);
-      } else if (s.type === 'line+scatter') {
+      } else if (s.type === "line+scatter") {
         this.renderLine(s.buffer, s.count, uniforms, color);
-        this.renderPoints(s.buffer, s.count, uniforms, color, (s.style.pointSize ?? 4) * this.dpr);
+        this.renderPoints(
+          s.buffer,
+          s.count,
+          uniforms,
+          color,
+          (s.style.pointSize ?? 4) * this.dpr
+        );
       }
     }
   }
@@ -347,7 +372,11 @@ export class NativeWebGLRenderer {
 
     // Set uniforms
     gl.uniform2f(prog.uniforms.uScale, uniforms.scale[0], uniforms.scale[1]);
-    gl.uniform2f(prog.uniforms.uTranslate, uniforms.translate[0], uniforms.translate[1]);
+    gl.uniform2f(
+      prog.uniforms.uTranslate,
+      uniforms.translate[0],
+      uniforms.translate[1]
+    );
     gl.uniform4f(prog.uniforms.uColor, color[0], color[1], color[2], color[3]);
 
     // Draw
@@ -375,7 +404,11 @@ export class NativeWebGLRenderer {
 
     // Set uniforms
     gl.uniform2f(prog.uniforms.uScale, uniforms.scale[0], uniforms.scale[1]);
-    gl.uniform2f(prog.uniforms.uTranslate, uniforms.translate[0], uniforms.translate[1]);
+    gl.uniform2f(
+      prog.uniforms.uTranslate,
+      uniforms.translate[0],
+      uniforms.translate[1]
+    );
     gl.uniform4f(prog.uniforms.uColor, color[0], color[1], color[2], color[3]);
     if (prog.uniforms.uPointSize) {
       gl.uniform1f(prog.uniforms.uPointSize, pointSize);
@@ -431,7 +464,7 @@ export class NativeWebGLRenderer {
     gl.deleteProgram(this.pointProgram.program);
 
     this.isInitialized = false;
-    console.log('[NativeWebGL] Destroyed');
+    console.log("[NativeWebGL] Destroyed");
   }
 }
 
@@ -440,7 +473,7 @@ export class NativeWebGLRenderer {
 // ============================================
 
 export function parseColor(color: string): [number, number, number, number] {
-  if (color.startsWith('#')) {
+  if (color.startsWith("#")) {
     const hex = color.slice(1);
     if (hex.length === 3) {
       const r = parseInt(hex[0] + hex[0], 16) / 255;
