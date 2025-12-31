@@ -68,6 +68,7 @@ export class Series {
       xError: options.data?.xError ? ensureTypedArray(options.data.xError) : undefined,
       xErrorPlus: options.data?.xErrorPlus ? ensureTypedArray(options.data.xErrorPlus) : undefined,
       xErrorMinus: options.data?.xErrorMinus ? ensureTypedArray(options.data.xErrorMinus) : undefined,
+      y2: options.data?.y2 ? ensureTypedArray(options.data.y2) : undefined,
     };
 
     // Support both style object and top-level style properties for convenience
@@ -113,6 +114,10 @@ export class Series {
 
   getYAxisId(): string | undefined {
     return this.yAxisId;
+  }
+
+  getVisible(): boolean {
+    return this.visible;
   }
 
   getData(): SeriesData {
@@ -298,9 +303,16 @@ export class Series {
 
       if (newX.length > 0 && newY.length > 0) {
         this.data = {
+          ...this.data,
           x: this.appendArray(this.data.x, newX),
           y: this.appendArray(this.data.y, newY),
         };
+        if (update.y2) {
+          const newY2 = ensureTypedArray(update.y2);
+          this.data.y2 = this.data.y2 
+            ? this.appendArray(this.data.y2, newY2)
+            : newY2;
+        }
         this.lastAppendCount += newX.length;
 
         // Handle rolling window
@@ -308,6 +320,7 @@ export class Series {
            const overflow = this.data.x.length - this.maxPoints;
            this.data.x = this.data.x.slice(overflow);
            this.data.y = this.data.y.slice(overflow);
+           if (this.data.y2) this.data.y2 = this.data.y2.slice(overflow);
            this.lastAppendCount = 0; // Force full update since we shifted
         }
       }
@@ -315,6 +328,7 @@ export class Series {
       // Replace mode
       if (update.x) this.data.x = ensureTypedArray(update.x);
       if (update.y) this.data.y = ensureTypedArray(update.y);
+      if (update.y2) this.data.y2 = ensureTypedArray(update.y2);
       this.lastAppendCount = 0;
     }
 
@@ -342,9 +356,10 @@ export class Series {
    */
   setData(
     x: Float32Array | Float64Array,
-    y: Float32Array | Float64Array
+    y: Float32Array | Float64Array,
+    y2?: Float32Array | Float64Array
   ): void {
-    this.data = { x, y };
+    this.data = { x, y, y2 };
     this.boundsNeedsUpdate = true;
     this.smoothingNeedsUpdate = true;
     this._needsBufferUpdate = true;
@@ -376,6 +391,16 @@ export class Series {
 
   setType(type: SeriesType): void {
     this.type = type;
+  }
+
+  setMaxPoints(maxPoints: number | undefined): void {
+    this.maxPoints = maxPoints;
+    if (this.maxPoints && this.data.x.length > this.maxPoints) {
+        this.data.x = this.data.x.slice(-this.maxPoints);
+        this.data.y = this.data.y.slice(-this.maxPoints);
+        if (this.data.y2) this.data.y2 = this.data.y2.slice(-this.maxPoints);
+        this._needsBufferUpdate = true;
+    }
   }
 
   // ----------------------------------------

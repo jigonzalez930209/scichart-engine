@@ -1,0 +1,217 @@
+/**
+ * Chart Renderer
+ * 
+ * Core rendering logic for the chart (WebGL + Overlay).
+ */
+
+import type { Bounds, CursorOptions, AxisOptions } from "../../types";
+import type { Series } from "../Series";
+import type { Scale } from "../../scales";
+import type { NativeWebGLRenderer, NativeSeriesRenderData as SeriesRenderData } from "../../renderer/NativeWebGLRenderer";
+import type { OverlayRenderer, CursorState } from "../OverlayRenderer";
+import type { AnnotationManager } from "../annotations";
+import type { ChartStatistics } from "../ChartStatistics";
+import type { EventEmitter } from "../EventEmitter";
+import type { ChartEventMap } from "../../types";
+
+export interface RenderContext {
+  webglCanvas: HTMLCanvasElement;
+  overlayCanvas: HTMLCanvasElement;
+  overlayCtx: CanvasRenderingContext2D;
+  container: HTMLDivElement;
+  series: Map<string, Series>;
+  viewBounds: Bounds;
+  xScale: Scale;
+  yScales: Map<string, Scale>;
+  yAxisOptionsMap: Map<string, AxisOptions>;
+  xAxisOptions: AxisOptions;
+  primaryYAxisId: string;
+  renderer: NativeWebGLRenderer;
+  overlay: OverlayRenderer;
+  annotationManager: AnnotationManager;
+  backgroundColor: [number, number, number, number];
+  cursorOptions: CursorOptions | null;
+  cursorPosition: { x: number; y: number } | null;
+  selectionRect: { x: number; y: number; width: number; height: number } | null;
+  stats: ChartStatistics | null;
+  showStatistics: boolean;
+  events: EventEmitter<ChartEventMap>;
+  updateSeriesBuffer: (s: Series) => void;
+  getPlotArea: () => { x: number; y: number; width: number; height: number };
+  pixelToDataX: (px: number) => number;
+  pixelToDataY: (py: number) => number;
+}
+
+/**
+ * Prepare series data for WebGL rendering
+ */
+export function prepareSeriesData(
+  ctx: RenderContext,
+  plotArea: { x: number; y: number; width: number; height: number }
+): SeriesRenderData[] {
+  const seriesData: SeriesRenderData[] = [];
+
+  // Update all scales with current plot area range and domain
+  ctx.xScale.setRange(plotArea.x, plotArea.x + plotArea.width);
+  ctx.xScale.setDomain(ctx.viewBounds.xMin, ctx.viewBounds.xMax);
+
+  ctx.yScales.forEach((scale, id) => {
+    scale.setRange(plotArea.y + plotArea.height, plotArea.y);
+    if (id === ctx.primaryYAxisId) {
+      scale.setDomain(ctx.viewBounds.yMin, ctx.viewBounds.yMax);
+    }
+  });
+
+  ctx.series.forEach((s) => {
+    if (s.needsBufferUpdate) {
+      ctx.updateSeriesBuffer(s);
+      s.needsBufferUpdate = false;
+    }
+
+    const buf = ctx.renderer.getBuffer(s.getId());
+    if (buf) {
+      const seriesType = s.getType();
+      
+      // Determine Y-bounds for this series
+      const axisId = s.getYAxisId() || ctx.primaryYAxisId;
+      const scale = ctx.yScales.get(axisId);
+      let yBounds: { min: number; max: number } | undefined;
+      
+      if (scale) {
+         yBounds = { min: scale.domain[0], max: scale.domain[1] };
+      }
+
+      // Map area type to band for rendering (area fills to y=0)
+      const renderType = seriesType === 'area' ? 'band' : seriesType;
+
+      const renderData: SeriesRenderData = {
+        id: s.getId(),
+        buffer: buf,
+        count: s.getPointCount(),
+        style: s.getStyle(),
+        visible: s.isVisible(),
+        type: renderType,
+        yBounds,
+      };
+
+      // For band and area series, count is doubled (2 vertices per point)
+      if (seriesType === 'band' || seriesType === 'area') {
+        renderData.count = s.getPointCount() * 2;
+      }
+      
+      // Add step buffer for step types
+      if (seriesType === 'step' || seriesType === 'step+scatter') {
+        const stepBuf = ctx.renderer.getBuffer(`${s.getId()}_step`);
+        if (stepBuf) {
+          renderData.stepBuffer = stepBuf;
+          // Calculate step count based on mode
+          const stepMode = s.getStyle().stepMode ?? 'after';
+          const pointCount = s.getPointCount();
+          if (stepMode === 'center') {
+            renderData.stepCount = 1 + (pointCount - 1) * 3;
+          } else {
+            renderData.stepCount = pointCount * 2 - 1;
+          }
+        }
+      }
+      
+      seriesData.push(renderData);
+    }
+  });
+
+  return seriesData;
+}
+
+/**
+ * Render overlay elements (axes, grid, annotations, etc.)
+ */
+export function renderOverlay(
+  ctx: RenderContext,
+  plotArea: { x: number; y: number; width: number; height: number },
+  primaryYScale: Scale
+): void {
+  const rect = ctx.container.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) {
+    console.warn("[SciChart] Container has zero size in render, skipping overlay");
+    return;
+  }
+
+  ctx.overlay.clear(rect.width, rect.height);
+  ctx.overlay.drawGrid(plotArea, ctx.xScale, primaryYScale);
+  ctx.overlay.drawXAxis(plotArea, ctx.xScale, ctx.xAxisOptions.label);
+
+  // Group axes by position
+  const leftAxes: string[] = [];
+  const rightAxes: string[] = [];
+  
+  ctx.yAxisOptionsMap.forEach((opts, id) => {
+      if(opts.position === 'right') rightAxes.push(id);
+      else leftAxes.push(id);
+  });
+
+  // Draw Left Axes (stacked outwards)
+  leftAxes.forEach((id, index) => {
+      const scale = ctx.yScales.get(id);
+      const opts = ctx.yAxisOptionsMap.get(id);
+      if(scale && opts) {
+           const offset = index * 65; 
+           ctx.overlay.drawYAxis(plotArea, scale, opts.label, 'left', offset);
+      }
+  });
+
+  // Draw Right Axes (stacked outwards)
+  rightAxes.forEach((id, index) => {
+      const scale = ctx.yScales.get(id);
+      const opts = ctx.yAxisOptionsMap.get(id);
+      if(scale && opts) {
+           const offset = index * 65; 
+           ctx.overlay.drawYAxis(plotArea, scale, opts.label, 'right', offset);
+      }
+  });
+
+  ctx.overlay.drawPlotBorder(plotArea);
+
+  // Draw Error Bars for all series with error data
+  ctx.series.forEach((s) => {
+    if (s.isVisible() && s.hasErrorData()) {
+      const axisId = s.getYAxisId() || ctx.primaryYAxisId;
+      const scale = ctx.yScales.get(axisId);
+      const yScale = scale || primaryYScale; 
+      
+      ctx.overlay.drawErrorBars(plotArea, s, ctx.xScale, yScale);
+    }
+  });
+
+  // Draw Selection Box
+  if (ctx.selectionRect) {
+    ctx.overlay.drawSelectionRect(ctx.selectionRect);
+  }
+
+  // Draw Annotations
+  if (ctx.annotationManager.count > 0) {
+    ctx.annotationManager.render(ctx.overlayCtx, plotArea, ctx.viewBounds);
+  }
+
+  // Cursor
+  if (ctx.cursorOptions?.enabled && ctx.cursorPosition) {
+    const cursor: CursorState = {
+      enabled: true,
+      x: ctx.cursorPosition.x,
+      y: ctx.cursorPosition.y,
+      crosshair: ctx.cursorOptions.crosshair ?? false,
+      tooltipText: ctx.cursorOptions.formatter
+        ? ctx.cursorOptions.formatter(
+            ctx.pixelToDataX(ctx.cursorPosition.x),
+            ctx.pixelToDataY(ctx.cursorPosition.y),
+            ""
+          )
+        : `X: ${ctx.pixelToDataX(ctx.cursorPosition.x).toFixed(3)}\nY: ${ctx.pixelToDataY(ctx.cursorPosition.y).toExponential(2)}`,
+    };
+    ctx.overlay.drawCursor(plotArea, cursor);
+  }
+
+  // Statistics Panel
+  if (ctx.stats && ctx.showStatistics) {
+    ctx.stats.update(ctx.viewBounds);
+  }
+}
