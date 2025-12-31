@@ -17,22 +17,34 @@ hero:
       link: https://github.com/jigonzalez930209/scichart-engine
 
 features:
-  - icon: 🚀
+  - icon: 
+      src: /assets/icons/rocket.svg
+      alt: Performance
     title: Blazing Fast Performance
     details: Render 10M+ data points at 60 FPS using native WebGL. No canvas limitations, no performance bottlenecks.
-  - icon: 📊
+  - icon: 
+      src: /assets/icons/chart.svg
+      alt: Precision
     title: Scientific Precision
     details: Built for scientific data with Float32/Float64 array support, automatic SI prefixes, and proper axis scaling.
-  - icon: ⚛️
+  - icon: 
+      src: /assets/icons/react.svg
+      alt: React
     title: React Ready
     details: First-class React support with hooks and components. Also works with vanilla JavaScript.
-  - icon: 🎨
+  - icon: 
+      src: /assets/icons/palette.svg
+      alt: Customizable
     title: Fully Customizable
     details: Multiple built-in themes, custom theming support, and extensive styling options.
-  - icon: 🔍
+  - icon: 
+      src: /assets/icons/zoom.svg
+      alt: Interactions
     title: Rich Interactions
     details: Pan, zoom, box-select, crosshair cursor, and touch support out of the box.
-  - icon: 📈
+  - icon: 
+      src: /assets/icons/analytics.svg
+      alt: Analysis
     title: Data Analysis Tools
     details: Built-in utilities for peak detection, cycle detection, downsampling, and statistical analysis.
 ---

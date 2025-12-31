@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="zoomGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f2ff"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+  </defs>
+  <circle cx="28" cy="28" r="18" stroke="url(#zoomGrad)" stroke-width="3"/>
+  <line x1="42" y1="42" x2="56" y2="56" stroke="url(#zoomGrad)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M22 28h12M28 22v12" stroke="url(#zoomGrad)" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
