@@ -115,6 +115,42 @@ export function prepareSeriesData(
         }
       }
       
+      if (seriesType === 'heatmap') {
+        const hData = s.getHeatmapData();
+        const hStyle = s.getHeatmapStyle();
+        if (hData) {
+          // Heatmap count is 6 vertices per cell (2 triangles)
+          const w = hData.xValues.length;
+          const h = hData.yValues.length;
+          renderData.count = (w - 1) * (h - 1) * 6;
+          
+          // Calculate Z-bounds if not provided
+          let zMin = Infinity, zMax = -Infinity;
+          for (let i = 0; i < hData.zValues.length; i++) {
+            const v = hData.zValues[i];
+            if (v < zMin) zMin = v;
+            if (v > zMax) zMax = v;
+          }
+          if (zMin === zMax) {
+            zMin -= 1;
+            zMax += 1;
+          }
+
+          renderData.zBounds = { 
+            min: hStyle?.colorScale?.min ?? (zMin === Infinity ? 0 : zMin), 
+            max: hStyle?.colorScale?.max ?? (zMax === -Infinity ? 1 : zMax) 
+          };
+          
+          if (renderData.zBounds.min === renderData.zBounds.max) {
+             renderData.zBounds.max = renderData.zBounds.min + 1;
+          }
+          
+          // Attach texture
+          const colormapId = `${s.getId()}_colormap`;
+          renderData.colormapTexture = ctx.renderer.getTexture(colormapId);
+        }
+      }
+      
       seriesData.push(renderData);
     }
   });

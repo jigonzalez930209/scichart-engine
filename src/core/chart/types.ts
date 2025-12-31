@@ -6,6 +6,7 @@
 
 import type {
   SeriesOptions,
+  HeatmapOptions,
   SeriesUpdateData,
   ZoomOptions,
   CursorOptions,
@@ -22,7 +23,9 @@ import * as analysis from "../../analysis";
 // ============================================
 
 export interface Chart {
-  addSeries(options: SeriesOptions): void;
+  addSeries(options: SeriesOptions | HeatmapOptions): void;
+  addBar(options: Omit<SeriesOptions, "type">): void;
+  addHeatmap(options: HeatmapOptions): void;
   removeSeries(id: string): void;
   updateSeries(id: string, data: SeriesUpdateData): void;
   getSeries(id: string): Series | undefined;

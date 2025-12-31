@@ -4,7 +4,7 @@
  * Handles series CRUD operations, buffer management, and curve fitting.
  */
 
-import type { SeriesOptions, SeriesUpdateData, Bounds } from "../../types";
+import type { SeriesOptions, HeatmapOptions, SeriesUpdateData, Bounds } from "../../types";
 import { Series } from "../Series";
 import { fitData, type FitType, type FitOptions } from "../../analysis";
 import {
@@ -12,7 +12,11 @@ import {
   interleaveData,
   interleaveStepData,
   interleaveBandData,
-} from "../../renderer/NativeWebGLRenderer";
+  interleaveBarData,
+  calculateBarWidth,
+  interleaveHeatmapData,
+  getColormap,
+} from "../../renderer";
 import type { Annotation } from "../annotations";
 
 export interface SeriesManagerContext {
@@ -33,7 +37,7 @@ export interface SeriesManagerContext {
  */
 export function addSeries(
   ctx: SeriesManagerContext,
-  options: SeriesOptions
+  options: SeriesOptions | HeatmapOptions
 ): void {
   const s = new Series(options);
   ctx.series.set(s.getId(), s);
@@ -87,9 +91,9 @@ export function updateSeriesBuffer(
   s: Series
 ): void {
   const d = s.getData();
-  if (!d || d.x.length === 0) return;
-  
   const seriesType = s.getType();
+  
+  if (seriesType !== "heatmap" && (!d || d.x.length === 0)) return;
   const seriesId = s.getId();
   const totalPoints = d.x.length;
 
@@ -100,6 +104,28 @@ export function updateSeriesBuffer(
       ? new Float32Array(totalPoints).fill(0)
       : (d.y2 || new Float32Array(totalPoints).fill(0));
     ctx.renderer.createBuffer(seriesId, interleaveBandData(d.x, d.y, y2));
+  } else if (seriesType === "bar") {
+    // For bar: create rectangular bar geometry
+    const barWidth = (s.getStyle() as any).barWidth ?? calculateBarWidth(d.x);
+    const barData = interleaveBarData(d.x, d.y, barWidth);
+    ctx.renderer.createBuffer(seriesId, barData);
+  } else if (seriesType === "heatmap") {
+    const hData = s.getHeatmapData();
+    const hStyle = s.getHeatmapStyle();
+    if (hData && hData.xValues.length > 1 && hData.yValues.length > 1) {
+      console.log(`[SciChart] Updating Heatmap Buffer: ${hData.xValues.length}x${hData.yValues.length}`);
+      const data = interleaveHeatmapData(hData.xValues, hData.yValues, hData.zValues);
+      ctx.renderer.createBuffer(seriesId, data);
+
+      // Create/Update colormap texture
+      const colormapName = hStyle?.colorScale?.name || "viridis";
+      const colormapId = `${seriesId}_colormap`;
+      const colormapData = getColormap(colormapName);
+      ctx.renderer.createColormapTexture(colormapId, colormapData);
+      console.log(`[SciChart] Created Colormap Texture: ${colormapId} (${colormapName})`);
+    } else {
+      console.warn(`[SciChart] Invalid Heatmap Data:`, hData);
+    }
   } else {
     ctx.renderer.createBuffer(seriesId, interleaveData(d.x, d.y));
   }

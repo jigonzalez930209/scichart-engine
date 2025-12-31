@@ -9,6 +9,7 @@ import type {
   ChartOptions,
   AxisOptions,
   SeriesOptions,
+  HeatmapOptions,
   SeriesUpdateData,
   ZoomOptions,
   CursorOptions,
@@ -31,7 +32,7 @@ import { AnnotationManager, type Annotation } from "../annotations";
 
 import type { Chart, ExportOptions } from "./types";
 import { exportToCSV, exportToJSON, exportToImage } from "./ChartExporter";
-import { applyZoom, applyPan, autoScaleAll, handleBoxZoom } from "./ChartNavigation";
+import { applyZoom, applyPan, autoScaleAll, handleBoxZoom, type NavigationContext } from "./ChartNavigation";
 import { prepareSeriesData, renderOverlay } from "./ChartRenderer";
 import { 
   addSeries as addSeriesImpl, 
@@ -207,12 +208,14 @@ export class ChartImpl implements Chart {
       xAxisOptions: this.xAxisOptions,
       yAxisOptionsMap: this.yAxisOptionsMap,
       autoScrollEnabled: this.autoScroll,
-      addSeries: (o: SeriesOptions) => this.addSeries(o),
+      addSeries: (o: SeriesOptions | HeatmapOptions) => this.addSeries(o),
       updateLegend: () => { if (this.legend) this.legend.update(this.getAllSeries()); }
     };
   }
 
-  addSeries(options: SeriesOptions): void { addSeriesImpl(this.getSeriesContext(), options); }
+  addSeries(options: SeriesOptions | HeatmapOptions): void { addSeriesImpl(this.getSeriesContext() as any, options as any); }
+  addBar(options: Omit<SeriesOptions, "type">): void { this.addSeries({ ...options, type: "bar" } as SeriesOptions); }
+  addHeatmap(options: HeatmapOptions): void { this.addSeries(options); }
   removeSeries(id: string): void { removeSeriesImpl(this.getSeriesContext(), id); }
   updateSeries(id: string, data: SeriesUpdateData): void { updateSeriesImpl(this.getSeriesContext(), id, data); }
   appendData(id: string, x: number[] | Float32Array, y: number[] | Float32Array): void {
@@ -227,12 +230,17 @@ export class ChartImpl implements Chart {
   getAllSeries(): Series[] { return Array.from(this.series.values()); }
 
   // Navigation (delegates to ChartNavigation)
-  private getNavContext() {
+  private getNavContext(): NavigationContext {
     return {
-      viewBounds: this.viewBounds, yScales: this.yScales, yAxisOptionsMap: this.yAxisOptionsMap,
-      xAxisOptions: this.xAxisOptions, primaryYAxisId: this.primaryYAxisId,
-      getPlotArea: () => this.getPlotArea(), events: this.events,
-      requestRender: () => this.requestRender(), series: this.series as any
+      viewBounds: this.viewBounds,
+      yScales: this.yScales,
+      yAxisOptionsMap: this.yAxisOptionsMap,
+      xAxisOptions: this.xAxisOptions,
+      primaryYAxisId: this.primaryYAxisId,
+      getPlotArea: () => this.getPlotArea(),
+      events: this.events,
+      requestRender: () => this.requestRender(),
+      series: this.series as any,
     };
   }
 

@@ -18,7 +18,12 @@ export interface NavigationContext {
   getPlotArea: () => { x: number; y: number; width: number; height: number };
   events: EventEmitter<ChartEventMap>;
   requestRender: () => void;
-  series: Map<string, { isVisible(): boolean; getBounds(): Bounds | null; getYAxisId(): string | undefined }>;
+  series: Map<string, { 
+    isVisible(): boolean; 
+    getBounds(): Bounds | null; 
+    getYAxisId(): string | undefined;
+    getType(): string;
+  }>;
 }
 
 /**
@@ -33,37 +38,47 @@ export function applyZoom(
     ctx.viewBounds.xMax = options.x[1];
   }
   
-  if (options.y) {
+  const hasBars = Array.from(ctx.series.values()).some(s => s.isVisible() && s.getType() === 'bar');
+  const finalY = options.y ? [...options.y] : null;
+
+  if (finalY && hasBars) {
+    // Pin baseline to 0 for bar charts during zoom
+    finalY[0] = 0;
+  }
+
+  if (finalY) {
     if (options.axisId) {
       // Zoom targeted axis only
       const scale = ctx.yScales.get(options.axisId);
       if (scale) {
-        scale.setDomain(options.y[0], options.y[1]);
+        scale.setDomain(finalY[0], finalY[1]);
         // Sync primary viewBounds if applicable
         if (options.axisId === ctx.primaryYAxisId) {
-          ctx.viewBounds.yMin = options.y[0];
-          ctx.viewBounds.yMax = options.y[1];
+          ctx.viewBounds.yMin = finalY[0];
+          ctx.viewBounds.yMax = finalY[1];
         }
       }
     } else {
       // Global zoom: apply to all axes proportionally
       const oldRange = ctx.viewBounds.yMax - ctx.viewBounds.yMin;
-      const newRange = options.y[1] - options.y[0];
+      const newRange = finalY[1] - finalY[0];
       const factor = oldRange > 0 ? newRange / oldRange : 1;
       
       // Calculate relative shift based on primary axis change
-      const offsetPct = oldRange > 0 ? (options.y[0] - ctx.viewBounds.yMin) / oldRange : 0;
+      const offsetPct = oldRange > 0 ? (finalY[0] - ctx.viewBounds.yMin) / oldRange : 0;
 
       ctx.yScales.forEach((scale, id) => {
         if (id === ctx.primaryYAxisId) return; // Will sync with viewBounds later
         const sRange = scale.domain[1] - scale.domain[0];
-        const sNewMin = scale.domain[0] + offsetPct * sRange;
-        const sNewMax = sNewMin + factor * sRange;
+        const sNewMin = hasBars ? 0 : (scale.domain[0] + offsetPct * sRange);
+        const sNewMax = hasBars 
+          ? (scale.domain[0] + (finalY[1] / (ctx.viewBounds.yMax || 1)) * sRange) // Roughly proportional
+          : (sNewMin + factor * sRange);
         scale.setDomain(sNewMin, sNewMax);
       });
 
-      ctx.viewBounds.yMin = options.y[0];
-      ctx.viewBounds.yMax = options.y[1];
+      ctx.viewBounds.yMin = finalY[0];
+      ctx.viewBounds.yMax = finalY[1];
     }
   }
   
@@ -94,26 +109,46 @@ export function applyPan(
     // Pan targeted axis only
     const scale = ctx.yScales.get(axisId);
     if (scale) {
+      const hasBars = Array.from(ctx.series.values()).some(s => s.isVisible() && s.getType() === 'bar');
       const range = scale.domain[1] - scale.domain[0];
       const moveY = (deltaY / pa.height) * range;
-      scale.setDomain(scale.domain[0] + moveY, scale.domain[1] + moveY);
+      
+      let nextMin = scale.domain[0] + moveY;
+      let nextMax = scale.domain[1] + moveY;
+      
+      if (hasBars) {
+        nextMin = 0; // Lock bottom
+        // Panning up/down only affects the top bound for bars
+        nextMax = scale.domain[1] + moveY; 
+      }
+
+      scale.setDomain(nextMin, nextMax);
       
       // Sync primary viewBounds if applicable
       if (axisId === ctx.primaryYAxisId) {
-        ctx.viewBounds.yMin = scale.domain[0];
-        ctx.viewBounds.yMax = scale.domain[1];
+        ctx.viewBounds.yMin = nextMin;
+        ctx.viewBounds.yMax = nextMax;
       }
     }
   } else {
     // Global pan: apply to all Y axes proportionally
+    const hasBars = Array.from(ctx.series.values()).some(s => s.isVisible() && s.getType() === 'bar');
     ctx.yScales.forEach((scale, id) => {
       const range = scale.domain[1] - scale.domain[0];
       const moveY = (deltaY / pa.height) * range;
-      scale.setDomain(scale.domain[0] + moveY, scale.domain[1] + moveY);
+      
+      let nextMin = scale.domain[0] + moveY;
+      let nextMax = scale.domain[1] + moveY;
+
+      if (hasBars) {
+        nextMin = 0;
+      }
+
+      scale.setDomain(nextMin, nextMax);
       
       if (id === ctx.primaryYAxisId) {
-        ctx.viewBounds.yMin = scale.domain[0];
-        ctx.viewBounds.yMax = scale.domain[1];
+        ctx.viewBounds.yMin = nextMin;
+        ctx.viewBounds.yMax = nextMax;
       }
     });
   }
@@ -139,6 +174,7 @@ export function autoScaleAll(ctx: NavigationContext): void {
   });
 
   let hasValidData = false;
+  const hasBars = Array.from(ctx.series.values()).some(s => s.isVisible() && s.getType() === 'bar');
 
   ctx.series.forEach((s) => {
     if (!s.isVisible()) return;
@@ -197,7 +233,10 @@ export function autoScaleAll(ctx: NavigationContext): void {
           if (yRange <= 0 || !isFinite(yRange)) yRange = Math.abs(bounds.min) * 0.1 || 1;
           const yPad = Math.min(yRange * 0.05, 1e10);
           
-          const newMin = Math.max(MIN_VALUE, bounds.min - yPad);
+          let newMin = Math.max(MIN_VALUE, bounds.min - yPad);
+          if (hasBars && bounds.min >= 0) {
+            newMin = 0; // Pin to bottom for bars
+          }
           const newMax = Math.min(MAX_VALUE, bounds.max + yPad);
           
           scale.setDomain(newMin, newMax);
