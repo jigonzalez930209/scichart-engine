@@ -200,6 +200,7 @@ export class ChartLegend {
   private render(): void {
     this.content.innerHTML = "";
     const legend = this.theme.legend;
+    const dpr = window.devicePixelRatio || 1;
 
     this.series.forEach((s) => {
       const item = document.createElement("div");
@@ -213,13 +214,48 @@ export class ChartLegend {
         color: ${legend.textColor};
       `;
 
-      const swatch = document.createElement("div");
-      swatch.style.cssText = `
-        width: ${legend.swatchSize}px;
-        height: ${legend.swatchSize}px;
-        background: ${s.getStyle().color || "#ff0055"};
-        border-radius: 2px;
-      `;
+      // Use a canvas for the swatch to support symbols
+      const swatch = document.createElement("canvas");
+      const size = legend.swatchSize;
+      swatch.width = size * dpr;
+      swatch.height = size * dpr;
+      swatch.style.width = `${size}px`;
+      swatch.style.height = `${size}px`;
+
+      const ctx = swatch.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+        const style = s.getStyle();
+        const color = style.color || "#ff0055";
+        const type = s.getType();
+        const symbol = style.symbol || 'circle';
+        
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        
+        const centerX = size / 2;
+        const centerY = size / 2;
+
+        const typeStr = String(type).toLowerCase();
+        const isScatter = typeStr === 'scatter' || typeStr === '1' || (typeStr === 'line' && !!style.symbol);
+        const isLineScatter = typeStr.includes('scatter') || typeStr === '2';
+
+        if (isScatter) {
+          this.drawSymbol(ctx, symbol, centerX, centerY, size * 0.8);
+        } else if (isLineScatter) {
+          ctx.beginPath();
+          ctx.moveTo(0, centerY);
+          ctx.lineTo(size, centerY);
+          ctx.stroke();
+          this.drawSymbol(ctx, symbol, centerX, centerY, size * 0.6);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(0, centerY);
+          ctx.lineTo(size, centerY);
+          ctx.stroke();
+        }
+      }
 
       const label = document.createElement("span");
       label.textContent = s.getId();
@@ -230,6 +266,82 @@ export class ChartLegend {
     });
   }
 
+  /**
+   * Internal symbol drawing logic (shared with canvas export)
+   */
+  private drawSymbol(
+    ctx: CanvasRenderingContext2D,
+    symbol: string,
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    const r = size / 2;
+    ctx.beginPath();
+
+    switch (symbol) {
+      case 'circle':
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      case 'square':
+        ctx.rect(x - r, y - r, size, size);
+        ctx.fill();
+        break;
+      case 'diamond':
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x - r, y);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'triangle':
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y + r);
+        ctx.lineTo(x - r, y + r);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'triangleDown':
+        ctx.moveTo(x, y + r);
+        ctx.lineTo(x + r, y - r);
+        ctx.lineTo(x - r, y - r);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'cross':
+        ctx.moveTo(x - r, y);
+        ctx.lineTo(x + r, y);
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x, y + r);
+        ctx.stroke();
+        break;
+      case 'x':
+        const d = r * 0.707;
+        ctx.moveTo(x - d, y - d);
+        ctx.lineTo(x + d, y + d);
+        ctx.moveTo(x + d, y - d);
+        ctx.lineTo(x - d, y + d);
+        ctx.stroke();
+        break;
+      case 'star':
+        for (let i = 0; i < 5; i++) {
+          ctx.lineTo(
+            x + r * Math.cos(((18 + i * 72) / 180) * Math.PI),
+            y - r * Math.sin(((18 + i * 72) / 180) * Math.PI)
+          );
+          ctx.lineTo(
+            x + (r / 2) * Math.cos(((54 + i * 72) / 180) * Math.PI),
+            y - (r / 2) * Math.sin(((54 + i * 72) / 180) * Math.PI)
+          );
+        }
+        ctx.closePath();
+        ctx.fill();
+        break;
+    }
+  }
+
   public draw(ctx: CanvasRenderingContext2D, dpr: number): void {
     if (this.series.length === 0) return;
 
@@ -237,9 +349,8 @@ export class ChartLegend {
     const padding = legend.padding * dpr;
     const itemGap = legend.itemGap * dpr;
     const swatchSize = legend.swatchSize * dpr;
-    const headerHeight = 8 * dpr; // Matching the 8px header in constructor
+    const headerHeight = 8 * dpr;
 
-    // Get current position in pixels
     const x = this.container.offsetLeft * dpr;
     const y = this.container.offsetTop * dpr;
     const width = this.container.clientWidth * dpr;
@@ -278,19 +389,42 @@ export class ChartLegend {
     ctx.font = `${legend.fontSize * dpr}px ${legend.fontFamily}`;
 
     this.series.forEach((s, i) => {
-      // Offset by headerHeight and padding
       const itemY =
         y +
         headerHeight +
         padding +
         i * (swatchSize + itemGap) +
         swatchSize / 2;
+      
+      const centerX = x + padding + swatchSize / 2;
+      const centerY = itemY;
+      const style = s.getStyle();
+      const type = s.getType();
+      const symbol = style.symbol || 'circle';
 
-      // Swatch
-      ctx.fillStyle = s.getStyle().color || "#ff0055";
-      ctx.fillRect(x + padding, itemY - swatchSize / 2, swatchSize, swatchSize);
+      ctx.fillStyle = style.color || "#ff0055";
+      ctx.strokeStyle = style.color || "#ff0055";
+      ctx.lineWidth = 2 * dpr;
 
-      // Label
+      const typeStr = String(type).toLowerCase();
+      const isScatter = typeStr === 'scatter' || typeStr === '1' || (typeStr === 'line' && !!style.symbol);
+      const isLineScatter = typeStr.includes('scatter') || typeStr === '2';
+
+      if (isScatter) {
+        this.drawSymbol(ctx, symbol, centerX, centerY, swatchSize * 0.9);
+      } else if (isLineScatter) {
+        ctx.beginPath();
+        ctx.moveTo(x + padding, centerY);
+        ctx.lineTo(x + padding + swatchSize, centerY);
+        ctx.stroke();
+        this.drawSymbol(ctx, symbol, centerX, centerY, swatchSize * 0.6);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x + padding, centerY);
+        ctx.lineTo(x + padding + swatchSize, centerY);
+        ctx.stroke();
+      }
+
       ctx.fillStyle = legend.textColor;
       ctx.fillText(s.getId(), x + padding + swatchSize + 8 * dpr, itemY);
     });
@@ -302,6 +436,10 @@ export class ChartLegend {
     this.theme = theme;
     this.updateStyle();
     this.render();
+  }
+
+  public setVisible(visible: boolean): void {
+    this.container.style.display = visible ? "block" : "none";
   }
 
   public destroy(): void {
