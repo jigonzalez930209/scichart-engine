@@ -4,15 +4,16 @@ import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const base = '/scichart-engine/';
+
 export default defineConfig({
-  base: '/scichart-engine/',
+  base,
   title: "SciChart Engine",
   description:
     "High-performance WebGL scientific charting engine for data visualization",
   ignoreDeadLinks: true,
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/logo.svg' }],
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/favicon.svg' }],
+    ['link', { rel: 'icon', href: `${base}favicon.svg` }],
     ['meta', { name: 'theme-color', content: '#00f2ff' }],
   ],
   vite: {
@@ -28,7 +29,7 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    logo: '/assets/logo.svg',
+    logo: `${base}logo.svg`,
     siteTitle: 'SciChart Engine',
     nav: [
       { text: "Home", link: "/" },
