@@ -189,11 +189,19 @@ export class OverlayRenderer {
   /**
    * Draw Y axis with ticks and labels
    */
-  drawYAxis(plotArea: PlotArea, yScale: Scale, label?: string): void {
+  drawYAxis(
+    plotArea: PlotArea, 
+    yScale: Scale, 
+    label?: string, 
+    position: "left" | "right" = "left",
+    offset: number = 0
+  ): void {
     const { ctx } = this;
     const axis = this.theme.yAxis;
     const yTicks = yScale.ticks(6);
-    const axisX = plotArea.x;
+    // Calculate X coordinate for axis line based on position and offset
+    const axisX = position === 'left' ? plotArea.x - offset : plotArea.x + plotArea.width + offset;
+    const tickDir = position === 'left' ? -1 : 1; // Left points left, right points right
 
     // Axis line
     ctx.strokeStyle = axis.lineColor;
@@ -206,7 +214,7 @@ export class OverlayRenderer {
     // Ticks and labels
     ctx.fillStyle = axis.labelColor;
     ctx.font = `${axis.labelSize}px ${axis.fontFamily}`;
-    ctx.textAlign = "right";
+    ctx.textAlign = position === 'left' ? "right" : "left";
     ctx.textBaseline = "middle";
 
     yTicks.forEach((tick) => {
@@ -217,11 +225,12 @@ export class OverlayRenderer {
         ctx.strokeStyle = axis.tickColor;
         ctx.beginPath();
         ctx.moveTo(axisX, y);
-        ctx.lineTo(axisX - axis.tickLength, y);
+        ctx.lineTo(axisX + axis.tickLength * tickDir, y);
         ctx.stroke();
 
         // Label
-        ctx.fillText(this.formatYTick(tick), axisX - axis.tickLength - 3, y);
+        const labelX = axisX + (axis.tickLength + 3) * tickDir;
+        ctx.fillText(this.formatYTick(tick), labelX, y);
       }
     });
 
@@ -232,8 +241,15 @@ export class OverlayRenderer {
       ctx.font = `${axis.titleSize}px ${axis.fontFamily}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.translate(15, plotArea.y + plotArea.height / 2);
-      ctx.rotate(-Math.PI / 2);
+      
+      const titleX = position === 'left' 
+        ? axisX - 40 // Ajustar padding para título izquierdo
+        : axisX + 40; // Ajustar padding para título derecho
+      
+      const titleY = plotArea.y + plotArea.height / 2;
+      
+      ctx.translate(titleX, titleY);
+      ctx.rotate(position === 'left' ? -Math.PI / 2 : Math.PI / 2);
       ctx.fillText(label, 0, 0);
       ctx.restore();
     }
@@ -263,9 +279,17 @@ export class OverlayRenderer {
     let maxWidth = 0;
     const items = series.map((s) => {
       const label = s.getId();
+      const style = s.getStyle();
       const width = ctx.measureText(label).width;
       maxWidth = Math.max(maxWidth, width);
-      return { id: s.getId(), color: s.getStyle().color ?? "#ff0055", label };
+      return { 
+        id: s.getId(), 
+        color: style.color ?? "#ff0055", 
+        label,
+        type: s.getType(),
+        symbol: style.symbol,
+        opacity: style.opacity ?? 1
+      };
     });
 
     const boxWidth = legend.swatchSize + 8 + maxWidth + legend.padding * 2;
@@ -322,24 +346,129 @@ export class OverlayRenderer {
     items.forEach((item, i) => {
       const itemY =
         y + legend.padding + i * (legend.swatchSize + legend.itemGap);
+      const swatchX = x + legend.padding;
+      const centerY = itemY + legend.swatchSize / 2;
+      const centerX = swatchX + legend.swatchSize / 2;
 
-      // Color swatch
+      // Draw swatch (symbol or line)
+      ctx.save();
+      ctx.globalAlpha = item.opacity;
       ctx.fillStyle = item.color;
-      ctx.fillRect(
-        x + legend.padding,
-        itemY,
-        legend.swatchSize,
-        legend.swatchSize
-      );
+      ctx.strokeStyle = item.color;
+      ctx.lineWidth = 2;
+
+      const size = legend.swatchSize;
+
+      // EXTREME FALLBACK DETECTION
+      const typeStr = String(item.type).toLowerCase();
+      const hasSymbol = !!item.symbol && item.symbol !== 'circle';
+      
+      const isScatter = typeStr === 'scatter' || typeStr === '1' || (typeStr === 'line' && hasSymbol);
+      const isLineScatter = typeStr.includes('scatter') || typeStr === '2';
+
+      if (isScatter) {
+        this.drawLegendSymbol(ctx, item.symbol ?? 'circle', centerX, centerY, size * 0.9);
+      } else if (isLineScatter) {
+        // Line + Scatter
+        ctx.beginPath();
+        ctx.moveTo(swatchX, centerY);
+        ctx.lineTo(swatchX + size, centerY);
+        ctx.stroke();
+        
+        this.drawLegendSymbol(ctx, item.symbol ?? 'circle', centerX, centerY, size * 0.6);
+      } else {
+        // Pure line or step
+        ctx.beginPath();
+        ctx.moveTo(swatchX, centerY);
+        ctx.lineTo(swatchX + size, centerY);
+        ctx.stroke();
+      }
+      ctx.restore();
 
       // Label
       ctx.fillStyle = legend.textColor;
       ctx.fillText(
         item.label,
         x + legend.padding + legend.swatchSize + 8,
-        itemY + legend.swatchSize / 2
+        centerY
       );
     });
+  }
+
+  /**
+   * Helper to draw a symbol in the legend
+   */
+  private drawLegendSymbol(
+    ctx: CanvasRenderingContext2D,
+    symbol: string,
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    const r = size / 2;
+    ctx.beginPath();
+
+    switch (symbol) {
+      case 'circle':
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      case 'square':
+        ctx.rect(x - r, y - r, size, size);
+        ctx.fill();
+        break;
+      case 'diamond':
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x - r, y);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'triangle':
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y + r);
+        ctx.lineTo(x - r, y + r);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'triangleDown':
+        ctx.moveTo(x, y + r);
+        ctx.lineTo(x + r, y - r);
+        ctx.lineTo(x - r, y - r);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'cross':
+        ctx.moveTo(x - r, y);
+        ctx.lineTo(x + r, y);
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x, y + r);
+        ctx.stroke();
+        break;
+      case 'x':
+        const d = r * 0.707; // sin(45)
+        ctx.moveTo(x - d, y - d);
+        ctx.lineTo(x + d, y + d);
+        ctx.moveTo(x + d, y - d);
+        ctx.lineTo(x - d, y + d);
+        ctx.stroke();
+        break;
+      case 'star':
+        for (let i = 0; i < 5; i++) {
+          ctx.lineTo(
+            x + r * Math.cos(((18 + i * 72) / 180) * Math.PI),
+            y - r * Math.sin(((18 + i * 72) / 180) * Math.PI)
+          );
+          ctx.lineTo(
+            x + (r / 2) * Math.cos(((54 + i * 72) / 180) * Math.PI),
+            y - (r / 2) * Math.sin(((54 + i * 72) / 180) * Math.PI)
+          );
+        }
+        ctx.closePath();
+        ctx.fill();
+        break;
+    }
   }
 
   /**
@@ -494,6 +623,132 @@ export class OverlayRenderer {
     ctx.rect(rect.x, rect.y, rect.width, rect.height);
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * Draw error bars for a series
+   */
+  drawErrorBars(
+    plotArea: PlotArea,
+    series: Series,
+    xScale: Scale,
+    yScale: Scale
+  ): void {
+    if (!series.hasErrorData()) return;
+
+    const { ctx } = this;
+    const data = series.getData();
+    const style = series.getStyle();
+    const errorStyle = style.errorBars ?? {};
+
+    // Skip if explicitly hidden
+    if (errorStyle.visible === false) return;
+
+    // Error bar styling
+    const color = errorStyle.color ?? style.color ?? '#ff0055';
+    const lineWidth = errorStyle.width ?? 1;
+    const capWidth = errorStyle.capWidth ?? 6;
+    const showCaps = errorStyle.showCaps !== false;
+    const opacity = errorStyle.opacity ?? 0.7;
+    const direction = errorStyle.direction ?? 'both';
+
+    ctx.save();
+
+    // Clip to plot area
+    ctx.beginPath();
+    ctx.rect(plotArea.x, plotArea.y, plotArea.width, plotArea.height);
+    ctx.clip();
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.globalAlpha = opacity;
+
+    // Draw error bars for each point
+    for (let i = 0; i < data.x.length; i++) {
+      const x = xScale.transform(data.x[i]);
+      const y = yScale.transform(data.y[i]);
+
+      // Skip points outside plot area
+      if (x < plotArea.x || x > plotArea.x + plotArea.width) continue;
+      if (y < plotArea.y || y > plotArea.y + plotArea.height) continue;
+
+      // Y error bars (vertical)
+      const yError = series.getYError(i);
+      if (yError) {
+        const [errorMinus, errorPlus] = yError;
+        const yBase = data.y[i];
+
+        // Convert error values to pixel positions
+        const yTop = yScale.transform(yBase + errorPlus);
+        const yBottom = yScale.transform(yBase - errorMinus);
+
+        ctx.beginPath();
+
+        // Draw based on direction
+        if (direction === 'both' || direction === 'positive') {
+          // Upper error bar
+          ctx.moveTo(x, y);
+          ctx.lineTo(x, yTop);
+          // Top cap
+          if (showCaps) {
+            ctx.moveTo(x - capWidth / 2, yTop);
+            ctx.lineTo(x + capWidth / 2, yTop);
+          }
+        }
+
+        if (direction === 'both' || direction === 'negative') {
+          // Lower error bar
+          ctx.moveTo(x, y);
+          ctx.lineTo(x, yBottom);
+          // Bottom cap
+          if (showCaps) {
+            ctx.moveTo(x - capWidth / 2, yBottom);
+            ctx.lineTo(x + capWidth / 2, yBottom);
+          }
+        }
+
+        ctx.stroke();
+      }
+
+      // X error bars (horizontal)
+      const xError = series.getXError(i);
+      if (xError) {
+        const [errorMinus, errorPlus] = xError;
+        const xBase = data.x[i];
+
+        // Convert error values to pixel positions
+        const xRight = xScale.transform(xBase + errorPlus);
+        const xLeft = xScale.transform(xBase - errorMinus);
+
+        ctx.beginPath();
+
+        if (direction === 'both' || direction === 'positive') {
+          // Right error bar
+          ctx.moveTo(x, y);
+          ctx.lineTo(xRight, y);
+          // Right cap
+          if (showCaps) {
+            ctx.moveTo(xRight, y - capWidth / 2);
+            ctx.lineTo(xRight, y + capWidth / 2);
+          }
+        }
+
+        if (direction === 'both' || direction === 'negative') {
+          // Left error bar
+          ctx.moveTo(x, y);
+          ctx.lineTo(xLeft, y);
+          // Left cap
+          if (showCaps) {
+            ctx.moveTo(xLeft, y - capWidth / 2);
+            ctx.lineTo(xLeft, y + capWidth / 2);
+          }
+        }
+
+        ctx.stroke();
+      }
+    }
+
     ctx.restore();
   }
 
