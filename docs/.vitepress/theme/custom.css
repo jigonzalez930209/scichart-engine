@@ -742,3 +742,8 @@ body::after {
   outline: 2px solid var(--vp-c-brand) !important;
   outline-offset: 2px;
 }
+
+/* Hide aside-curtain */
+.aside-curtain {
+  display: none !important;
+}

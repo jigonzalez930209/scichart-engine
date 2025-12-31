@@ -1,25 +1,37 @@
 {
   "name": "scichart-engine",
   "version": "0.1.0",
+  "author": "jigonzalez930209",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jigonzalez930209/scichart-engine.git"
+  },
+  "keywords": [
+    "chart",
+    "webgl",
+    "scientific",
+    "performance",
+    "data-visualization",
+    "react",
+    "electrochemical"
+  ],
   "description": "A high-performance scientific charting engine for web applications.",
   "type": "module",
-  "main": "./dist/scichart-engine.umd.cjs",
-  "module": "./dist/scichart-engine.js",
+  "main": "./dist/scichart-engine.umd.js",
+  "module": "./dist/scichart-engine.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/scichart-engine.js",
-      "require": "./dist/scichart-engine.umd.cjs"
-    },
-    "./react": {
-      "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.js",
-      "require": "./dist/react/index.umd.cjs"
+      "import": "./dist/scichart-engine.es.js",
+      "require": "./dist/scichart-engine.umd.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "vite",
@@ -28,7 +40,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
     "react": ">=16.8.0",
