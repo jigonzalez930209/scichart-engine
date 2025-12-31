@@ -11,8 +11,8 @@ export default defineConfig({
     "High-performance WebGL scientific charting engine for data visualization",
   ignoreDeadLinks: true,
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/logo.svg' }],
-    ['link', { rel: 'icon', type: 'image/png', href: '/assets/favicon.png' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/scichart-engine/assets/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/scichart-engine/assets/favicon.png' }],
     ['meta', { name: 'theme-color', content: '#00f2ff' }],
   ],
   vite: {
@@ -28,7 +28,7 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    logo: '/assets/logo.svg',
+    logo: '/scichart-engine/assets/logo.svg',
     siteTitle: 'SciChart Engine',
     nav: [
       { text: "Home", link: "/" },
