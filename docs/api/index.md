@@ -55,6 +55,109 @@ SciChart Engine provides a comprehensive API for creating high-performance scien
 | `chart.destroy()` | Clean up resources |
 | `chart.exportImage(type?)` | Export as PNG/JPEG |
 
+### Annotations
+
+| Method | Description |
+|--------|-------------|
+| [`chart.addAnnotation(annotation)`](/api/annotations#add-annotation) | Add an annotation |
+| [`chart.removeAnnotation(id)`](/api/annotations#remove-annotation) | Remove an annotation |
+| [`chart.updateAnnotation(id, updates)`](/api/annotations#update-annotation) | Update an annotation |
+| [`chart.getAnnotation(id)`](/api/annotations#get-annotation) | Get an annotation by ID |
+| [`chart.getAnnotations()`](/api/annotations#get-all) | Get all annotations |
+| [`chart.clearAnnotations()`](/api/annotations#clear) | Clear all annotations |
+
+**Annotation Types:**
+- `horizontal-line` - Horizontal line with optional label
+- `vertical-line` - Vertical line with optional label
+- `rectangle` - Rectangular region
+- `band` - Horizontal or vertical band/region
+- `text` - Text annotation with customizable style
+- `arrow` - Arrow with head customization
+
+[View full Annotations API →](/api/annotations)
+
+### Step Charts
+
+Step charts display data as "stair-step" patterns - ideal for discrete data.
+
+| Type | Description |
+|------|-------------|
+| `step` | Step line chart |
+| `step+scatter` | Step chart with point markers |
+
+**Step Modes:**
+- `after` - Step after the point (default)
+- `before` - Step before the point
+- `center` - Step at midpoint
+
+[View Step Charts documentation →](/api/step-charts)
+
+### Data Export
+
+| Method | Description |
+|--------|-------------|
+| [`chart.exportCSV(options?)`](/api/export#csv-export) | Export data to CSV format |
+| [`chart.exportJSON(options?)`](/api/export#json-export) | Export data to JSON format |
+
+```typescript
+// Quick export
+const csv = chart.exportCSV();
+const json = chart.exportJSON();
+
+// With options
+const csv = chart.exportCSV({
+  seriesIds: ['current'],
+  precision: 4,
+  delimiter: '\t'
+});
+```
+
+[View Data Export documentation →](/api/export)
+
+### Error Bars
+
+Visualize uncertainty, variability, or confidence intervals in your data.
+
+**Error Data Types:**
+- `yError` - Symmetric Y error (±value)
+- `yErrorPlus` / `yErrorMinus` - Asymmetric Y error
+- `xError` - Symmetric X error (horizontal)
+- `xErrorPlus` / `xErrorMinus` - Asymmetric X error
+
+**Styling Options:**
+```typescript
+errorBars: {
+  color: '#00f2ff',
+  width: 1.5,
+  capWidth: 8,
+  showCaps: true,
+  opacity: 0.7,
+  direction: 'both'  // 'both' | 'positive' | 'negative'
+}
+```
+
+[View Error Bars documentation →](/api/error-bars)
+
+### Scatter Symbols
+
+Multiple marker shapes for scatter plots, rendered via GPU shaders.
+
+**Supported Shapes:**
+- `circle` (default), `square`, `diamond`
+- `triangle`, `triangleDown`
+- `cross`, `x`, `star`
+
+**Usage:**
+```typescript
+style: {
+  symbol: 'star',
+  pointSize: 10,
+  color: '#ff4d4d'
+}
+```
+
+[View Scatter Symbols documentation →](/api/scatter-symbols)
+
 ## React API
 
 | Export | Description |
