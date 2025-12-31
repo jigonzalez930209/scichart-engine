@@ -18,32 +18,32 @@ hero:
 
 features:
   - icon: 
-      src: /scichart-engine/assets/icons/rocket.svg
+      src: /assets/icons/rocket.svg
       alt: Performance
     title: Blazing Fast Performance
     details: Render 10M+ data points at 60 FPS using native WebGL. No canvas limitations, no performance bottlenecks.
   - icon: 
-      src: /scichart-engine/assets/icons/chart.svg
+      src: /assets/icons/chart.svg
       alt: Precision
     title: Scientific Precision
     details: Built for scientific data with Float32/Float64 array support, automatic SI prefixes, and proper axis scaling.
   - icon: 
-      src: /scichart-engine/assets/icons/react.svg
+      src: /assets/icons/react.svg
       alt: React
     title: React Ready
     details: First-class React support with hooks and components. Also works with vanilla JavaScript.
   - icon: 
-      src: /scichart-engine/assets/icons/palette.svg
+      src: /assets/icons/palette.svg
       alt: Customizable
     title: Fully Customizable
     details: Multiple built-in themes, custom theming support, and extensive styling options.
   - icon: 
-      src: /scichart-engine/assets/icons/zoom.svg
+      src: /assets/icons/zoom.svg
       alt: Interactions
     title: Rich Interactions
     details: Pan, zoom, box-select, crosshair cursor, and touch support out of the box.
   - icon: 
-      src: /scichart-engine/assets/icons/analytics.svg
+      src: /assets/icons/analytics.svg
       alt: Analysis
     title: Data Analysis Tools
     details: Built-in utilities for peak detection, cycle detection, downsampling, and statistical analysis.
