@@ -24,14 +24,14 @@ export interface ChartControlsCallbacks {
 // ============================================
 
 const ICONS = {
-  PAN: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>`,
-  RESET: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`,
-  LINE: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path></svg>`,
-  SCATTER: `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="7" cy="14" r="2"></circle><circle cx="11" cy="10" r="2"></circle><circle cx="15" cy="13" r="2"></circle><circle cx="19" cy="8" r="2"></circle><path d="M3 3v18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
-  BOTH: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path><circle cx="7" cy="14.3" r="1" fill="currentColor"></circle><circle cx="10.8" cy="10.5" r="1" fill="currentColor"></circle><circle cx="13.6" cy="13.2" r="1" fill="currentColor"></circle><circle cx="18.7" cy="8" r="1" fill="currentColor"></circle></svg>`,
-  SMOOTH: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c.5 0 .9-.3 1.2-.7l1.6-2.6c.3-.4.7-.7 1.2-.7h2c.5 0 .9.3 1.2.7l1.6 2.6c.3.4.7.7 1.2.7h2c.5 0 .9-.3 1.2-.7l1.6-2.6c.3-.4.7-.7 1.2-.7h2"></path></svg>`,
-  AUTOSCALE: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`,
-  EXPORT: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`,
+  PAN: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>`,
+  RESET: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`,
+  LINE: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path></svg>`,
+  SCATTER: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="7" cy="14" r="2"></circle><circle cx="11" cy="10" r="2"></circle><circle cx="15" cy="13" r="2"></circle><circle cx="19" cy="8" r="2"></circle><path d="M3 3v18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+  BOTH: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path><circle cx="7" cy="14.3" r="1" fill="currentColor"></circle><circle cx="10.8" cy="10.5" r="1" fill="currentColor"></circle><circle cx="13.6" cy="13.2" r="1" fill="currentColor"></circle><circle cx="18.7" cy="8" r="1" fill="currentColor"></circle></svg>`,
+  SMOOTH: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c.5 0 .9-.3 1.2-.7l1.6-2.6c.3-.4.7-.7 1.2-.7h2c.5 0 .9.3 1.2.7l1.6 2.6c.3.4.7.7 1.2.7h2c.5 0 .9-.3 1.2-.7l1.6-2.6c.3-.4.7-.7 1.2-.7h2"></path></svg>`,
+  AUTOSCALE: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`,
+  EXPORT: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`,
 };
 
 export class ChartControls {
@@ -208,8 +208,8 @@ export class ChartControls {
 
     const svgEl = btn.querySelector<SVGElement>("svg");
     if (svgEl) {
-      svgEl.setAttribute("width", "18");
-      svgEl.setAttribute("height", "18");
+      svgEl.setAttribute("width", "14");
+      svgEl.setAttribute("height", "14");
       (svgEl as any).style.display = "block";
       (svgEl as any).style.overflow = "visible";
       (svgEl as any).style.color = "inherit";
@@ -235,8 +235,8 @@ export class ChartControls {
     const color = isDark ? "#ffffff" : "#1e293b";
 
     btn.style.cssText = `
-      width: 32px;
-      height: 32px;
+      width: 24px;
+      height: 24px;
       display: flex;
       align-items: center;
       justify-content: center;

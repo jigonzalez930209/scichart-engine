@@ -35,9 +35,11 @@ export class ChartLegend {
     this.container = document.createElement("div");
     this.container.className = "scichart-legend";
 
-    // Default position (top-right with some margin)
+    // Default position (top-right, below controls toolbar)
+    // Controls toolbar height is ~32px (24px buttons + 4px padding*2 + borders) + 8px top margin = ~40px
+    // Add extra margin to ensure no overlap
     const x = options.x ?? parent.clientWidth - 150;
-    const y = options.y ?? 20;
+    const y = options.y ?? 55;
 
     this.container.style.cssText = `
       position: absolute;
