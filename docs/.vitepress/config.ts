@@ -29,7 +29,7 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    logo: `${base}logo.svg`,
+    logo: '/logo.svg',
     siteTitle: 'SciChart Engine',
     nav: [
       { text: "Home", link: "/" },
