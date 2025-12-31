@@ -24,7 +24,7 @@ export interface NativeSeriesRenderData {
   count: number;
   style: SeriesStyle;
   visible: boolean;
-  type: "line" | "scatter" | "line+scatter" | "step" | "step+scatter";
+  type: "line" | "scatter" | "line+scatter" | "step" | "step+scatter" | "band";
   /** For step types: pre-computed step buffer */
   stepBuffer?: WebGLBuffer;
   stepCount?: number;
@@ -507,8 +507,38 @@ export class NativeWebGLRenderer {
             s.style.symbol
           );
         }
+      } else if (s.type === "band") {
+        this.renderBand(s.buffer, s.count, seriesUniforms, color);
       }
     }
+  }
+
+  private renderBand(
+    buffer: WebGLBuffer,
+    count: number,
+    uniforms: { scale: [number, number]; translate: [number, number] },
+    color: [number, number, number, number]
+  ): void {
+    const { gl } = this;
+    const prog = this.lineProgram; // Reuse line shader (it just outputs color)
+
+    gl.useProgram(prog.program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.enableVertexAttribArray(prog.attributes.position);
+    gl.vertexAttribPointer(prog.attributes.position, 2, gl.FLOAT, false, 0, 0);
+
+    gl.uniform2f(prog.uniforms.uScale, uniforms.scale[0], uniforms.scale[1]);
+    gl.uniform2f(prog.uniforms.uTranslate, uniforms.translate[0], uniforms.translate[1]);
+    
+    // Band uses lower opacity by default for nice shading
+    const alpha = color[3] * 0.4;
+    gl.uniform4f(prog.uniforms.uColor, color[0], color[1], color[2], alpha);
+
+    // Band uses TRIANGLE_STRIP for filling area between two curves
+    // Vertex 1: (x1, yL), Vertex 2: (x1, yH), Vertex 3: (x2, yL)...
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, count);
+
+    gl.disableVertexAttribArray(prog.attributes.position);
   }
 
   private renderLine(
@@ -770,4 +800,30 @@ export function interleaveStepData(
 
   // Trim the result if we overallocated (center mode uses more)
   return result.subarray(0, resultIdx);
+}
+
+/**
+ * Interleaves data for band rendering
+ * Produces [x1, y1, x1, y2, x2, y1, x2, y2, ...]
+ * which is ready for gl.TRIANGLE_STRIP
+ */
+export function interleaveBandData(
+  x: Float32Array | Float64Array | number[],
+  y1: Float32Array | Float64Array | number[],
+  y2: Float32Array | Float64Array | number[]
+): Float32Array {
+  const n = Math.min(x.length, y1.length, y2.length);
+  const result = new Float32Array(n * 2 * 2); // 2 vertices per point, 2 floats per vertex
+  
+  for (let i = 0; i < n; i++) {
+    const idx = i * 4;
+    const xi = x[i];
+    // Vertex 1 (Curve 1)
+    result[idx + 0] = xi;
+    result[idx + 1] = y1[i];
+    // Vertex 2 (Curve 2 / Baseline)
+    result[idx + 2] = xi;
+    result[idx + 3] = y2[i];
+  }
+  return result;
 }

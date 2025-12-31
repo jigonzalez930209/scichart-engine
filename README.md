@@ -8,12 +8,13 @@ A high-performance, WebGL-powered scientific charting engine built for precision
 ## ✨ Features
 
 -   **🚀 High Performance**: Render millions of data points with ease using a specialized raw WebGL renderer.
--   **📊 Scientific Precision**: Tailored for electrochemical (CV, DPV, etc.) and scientific data.
--   **↕️ Multiple Y-Axes**: Plot multiple data series with independent scales and units on a single chart.
--   **🖱️ Deep Interactivity**: Smooth panning, wheel zoom, and precise box-selection zoom.
--   **⚛️ React Ready**: Native React hooks and components included.
--   **📈 Advanced Analysis**: Built-in cycle detection, peak detection, and real-time smoothing.
--   **🎨 Theming**: Fully customizable visual themes with premium defaults.
+-   **📈 Advanced Analysis**: Built-in peak detection, integration, baseline correction, and customizable curve fitting (linear/poly/exp).
+-   **📊 Specialized Series**: Support for Lines, Scatter (SDF symbols), Step charts, Band series, and Area charts.
+-   **↕️ Multi-Axis Engine**: Independent scales and units with axis-specific scrolling and zooming.
+-   **📏 Professional Tooling**: Real-time Statistics panel (Min/Max/Mean/Area), Annotations (Lines/Shapes/Text), and Data Export.
+-   **⚛️ Framework First**: Native React support via hooks and high-level components.
+-   **🎨 Dynamic Theming**: Sleek built-in themes (Light/Midnight) with support for custom CSS-based skins.
+-   **🏗️ Modular Core**: Built on a modern, decoupled architecture for maximum extendability.
 
 ## 🛠️ Installation
 

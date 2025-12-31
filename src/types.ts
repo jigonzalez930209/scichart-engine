@@ -54,7 +54,7 @@ export interface AxisOptions {
 // Series Types
 // ============================================
 
-export type SeriesType = "line" | "scatter" | "line+scatter" | "step" | "step+scatter";
+export type SeriesType = "line" | "scatter" | "line+scatter" | "step" | "step+scatter" | "band" | "area";
 
 /** Step mode defines where the step occurs */
 export type StepMode = "before" | "after" | "center";
@@ -79,6 +79,8 @@ export interface SeriesData {
   xErrorPlus?: Float32Array | Float64Array;
   /** Asymmetric X error - negative direction (leftward) */
   xErrorMinus?: Float32Array | Float64Array;
+  /** Second Y-values for band/area charts (lower boundary or baseline) */
+  y2?: Float32Array | Float64Array;
 }
 
 /** Error bar styling options */
@@ -116,6 +118,8 @@ export interface SeriesStyle {
   errorBars?: ErrorBarStyle;
   /** Scatter symbol shape (default: 'circle') */
   symbol?: ScatterSymbol;
+  /** Dash pattern [dash, gap] - empty for solid */
+  lineDash?: number[];
 }
 
 /** Available scatter symbol shapes */
@@ -153,6 +157,8 @@ export interface SeriesUpdateData {
   x?: Float32Array | Float64Array;
   /** New Y values */
   y?: Float32Array | Float64Array;
+  /** New Y2 values (for bands) */
+  y2?: Float32Array | Float64Array;
   /** If true, append to existing data; if false, replace */
   append?: boolean;
 }
@@ -182,6 +188,8 @@ export interface ChartOptions {
   showControls?: boolean;
   /** Automatically follow new data (default: false) */
   autoScroll?: boolean;
+  /** Show statistics panel (default: false) */
+  showStatistics?: boolean;
 }
 
 // ============================================
