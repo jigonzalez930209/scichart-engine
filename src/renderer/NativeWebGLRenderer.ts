@@ -12,7 +12,7 @@
  * - Minimal state changes per frame
  */
 
-import type { Bounds, SeriesStyle } from "../types";
+import type { Bounds } from "../types";
 
 // ============================================
 // Types
@@ -22,14 +22,18 @@ export interface NativeSeriesRenderData {
   id: string;
   buffer: WebGLBuffer;
   count: number;
-  style: SeriesStyle;
+  style: any; // Using any to support both SeriesStyle and HeatmapStyle
   visible: boolean;
-  type: "line" | "scatter" | "line+scatter" | "step" | "step+scatter" | "band";
+  type: "line" | "scatter" | "line+scatter" | "step" | "step+scatter" | "band" | "bar" | "heatmap";
   /** For step types: pre-computed step buffer */
   stepBuffer?: WebGLBuffer;
   stepCount?: number;
   /** Optional specific Y-bounds for this series (overrides global bounds) */
   yBounds?: { min: number; max: number };
+  /** Heatmap specific */
+  zBounds?: { min: number; max: number };
+  colormap?: string;
+  colormapTexture?: WebGLTexture;
 }
 
 export interface NativeRenderOptions {
@@ -40,13 +44,19 @@ export interface NativeRenderOptions {
 
 interface ShaderProgram {
   program: WebGLProgram;
-  attributes: { position: number };
+  attributes: { 
+    position: number;
+    value?: number;
+  };
   uniforms: {
     uScale: WebGLUniformLocation;
     uTranslate: WebGLUniformLocation;
-    uColor: WebGLUniformLocation;
-    uPointSize?: WebGLUniformLocation;
-    uSymbol?: WebGLUniformLocation;
+    uColor: WebGLUniformLocation | null;
+    uPointSize: WebGLUniformLocation | null;
+    uSymbol: WebGLUniformLocation | null;
+    uMinValue: WebGLUniformLocation | null;
+    uMaxValue: WebGLUniformLocation | null;
+    uColormap: WebGLUniformLocation | null;
   };
 }
 
@@ -173,6 +183,36 @@ void main() {
 }
 `;
 
+const HEATMAP_VERT = `
+precision highp float;
+attribute vec2 aPosition;
+attribute float aValue;
+uniform vec2 uScale;
+uniform vec2 uTranslate;
+varying float vValue;
+
+void main() {
+  gl_Position = vec4(aPosition * uScale + uTranslate, 0.0, 1.0);
+  vValue = aValue;
+}
+`;
+
+const HEATMAP_FRAG = `
+precision highp float;
+varying float vValue;
+uniform float uMinValue;
+uniform float uMaxValue;
+uniform sampler2D uColormap;
+
+void main() {
+  float range = uMaxValue - uMinValue;
+  float t = (vValue - uMinValue) / (range != 0.0 ? range : 1.0);
+  t = clamp(t, 0.0, 1.0);
+  // Sample 1D colormap at center of the texture height
+  gl_FragColor = texture2D(uColormap, vec2(t, 0.5));
+}
+`;
+
 // ============================================
 // NativeWebGLRenderer Class
 // ============================================
@@ -190,10 +230,14 @@ export class NativeWebGLRenderer {
   // Compiled shader programs
   private lineProgram: ShaderProgram;
   private pointProgram: ShaderProgram;
+  private heatmapProgram: ShaderProgram;
 
   // Buffer cache
   private buffers: Map<string, WebGLBuffer> = new Map();
   private bufferSizes: Map<string, number> = new Map();
+
+  // Texture cache for colormaps
+  private textures: Map<string, WebGLTexture> = new Map();
 
   // State
   private isInitialized = false;
@@ -217,8 +261,9 @@ export class NativeWebGLRenderer {
     this.gl = gl;
 
     // Compile shaders
-    this.lineProgram = this.createProgram(LINE_VERT, LINE_FRAG, false);
-    this.pointProgram = this.createProgram(POINT_VERT, POINT_FRAG, true);
+    this.lineProgram = this.createProgram(LINE_VERT, LINE_FRAG, "line");
+    this.pointProgram = this.createProgram(POINT_VERT, POINT_FRAG, "point");
+    this.heatmapProgram = this.createProgram(HEATMAP_VERT, HEATMAP_FRAG, "heatmap");
 
     // Enable blending for transparency
     gl.enable(gl.BLEND);
@@ -252,7 +297,7 @@ export class NativeWebGLRenderer {
   private createProgram(
     vertSource: string,
     fragSource: string,
-    hasPointSize: boolean
+    mode: "line" | "point" | "heatmap"
   ): ShaderProgram {
     const { gl } = this;
 
@@ -271,40 +316,26 @@ export class NativeWebGLRenderer {
       throw new Error(`Program link error: ${error}`);
     }
 
-    // Clean up shaders (they're now part of the program)
     gl.deleteShader(vertShader);
     gl.deleteShader(fragShader);
 
-    // Get attribute and uniform locations
-    const positionAttr = gl.getAttribLocation(program, "position");
-    const scaleUniform = gl.getUniformLocation(program, "uScale");
-    const translateUniform = gl.getUniformLocation(program, "uTranslate");
-    const colorUniform = gl.getUniformLocation(program, "uColor");
-
-    if (
-      scaleUniform === null ||
-      translateUniform === null ||
-      colorUniform === null
-    ) {
-      throw new Error("Failed to get uniform locations");
-    }
-
     const result: ShaderProgram = {
       program,
-      attributes: { position: positionAttr },
+      attributes: { 
+        position: gl.getAttribLocation(program, mode === "heatmap" ? "aPosition" : "position"),
+        value: mode === "heatmap" ? gl.getAttribLocation(program, "aValue") : -1,
+      },
       uniforms: {
-        uScale: scaleUniform,
-        uTranslate: translateUniform,
-        uColor: colorUniform,
+        uScale: gl.getUniformLocation(program, "uScale")!,
+        uTranslate: gl.getUniformLocation(program, "uTranslate")!,
+        uColor: mode !== "heatmap" ? gl.getUniformLocation(program, "uColor") : null,
+        uPointSize: mode === "point" ? gl.getUniformLocation(program, "uPointSize") : null,
+        uSymbol: mode === "point" ? gl.getUniformLocation(program, "uSymbol") : null,
+        uMinValue: mode === "heatmap" ? gl.getUniformLocation(program, "uMinValue") : null,
+        uMaxValue: mode === "heatmap" ? gl.getUniformLocation(program, "uMaxValue") : null,
+        uColormap: mode === "heatmap" ? gl.getUniformLocation(program, "uColormap") : null,
       },
     };
-
-    if (hasPointSize) {
-      result.uniforms.uPointSize =
-        gl.getUniformLocation(program, "uPointSize") ?? undefined;
-      result.uniforms.uSymbol =
-        gl.getUniformLocation(program, "uSymbol") ?? undefined;
-    }
 
     return result;
   }
@@ -509,6 +540,10 @@ export class NativeWebGLRenderer {
         }
       } else if (s.type === "band") {
         this.renderBand(s.buffer, s.count, seriesUniforms, color);
+      } else if (s.type === "heatmap") {
+        this.renderHeatmap(s.buffer, s.count, seriesUniforms, s.zBounds, s.colormapTexture);
+      } else if (s.type === "bar") {
+        this.renderBar(s.buffer, s.count, seriesUniforms, color);
       }
     }
   }
@@ -537,6 +572,121 @@ export class NativeWebGLRenderer {
     // Band uses TRIANGLE_STRIP for filling area between two curves
     // Vertex 1: (x1, yL), Vertex 2: (x1, yH), Vertex 3: (x2, yL)...
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, count);
+
+    gl.disableVertexAttribArray(prog.attributes.position);
+  }
+
+  private renderHeatmap(
+    buffer: WebGLBuffer,
+    count: number,
+    uniforms: { scale: [number, number]; translate: [number, number] },
+    zBounds: { min: number; max: number } = { min: 0, max: 1 },
+    texture?: WebGLTexture
+  ): void {
+    const { gl } = this;
+    const prog = this.heatmapProgram;
+
+    gl.useProgram(prog.program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    
+    // Position attribute (aPosition)
+    gl.enableVertexAttribArray(prog.attributes.position);
+    gl.vertexAttribPointer(prog.attributes.position, 2, gl.FLOAT, false, 12, 0);
+
+    // Value attribute (aValue)
+    if (prog.attributes.value !== undefined && prog.attributes.value !== -1) {
+      gl.enableVertexAttribArray(prog.attributes.value);
+      gl.vertexAttribPointer(prog.attributes.value, 1, gl.FLOAT, false, 12, 8);
+    }
+
+    gl.uniform2f(prog.uniforms.uScale, uniforms.scale[0], uniforms.scale[1]);
+    gl.uniform2f(prog.uniforms.uTranslate, uniforms.translate[0], uniforms.translate[1]);
+    
+    if (prog.uniforms.uMinValue !== undefined && prog.uniforms.uMinValue !== null) 
+      gl.uniform1f(prog.uniforms.uMinValue as WebGLUniformLocation, zBounds.min);
+    if (prog.uniforms.uMaxValue !== undefined && prog.uniforms.uMaxValue !== null) 
+      gl.uniform1f(prog.uniforms.uMaxValue as WebGLUniformLocation, zBounds.max);
+
+    if (texture && prog.uniforms.uColormap) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.uniform1i(prog.uniforms.uColormap as WebGLUniformLocation, 0);
+    } else if (prog.uniforms.uColormap) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
+    // Heatmap uses TRIANGLES
+    gl.drawArrays(gl.TRIANGLES, 0, count);
+
+    gl.disableVertexAttribArray(prog.attributes.position);
+    if (prog.attributes.value !== undefined && prog.attributes.value !== -1) {
+      gl.disableVertexAttribArray(prog.attributes.value);
+    }
+  }
+
+  /**
+   * Create or update a 1D colormap texture
+   */
+  createColormapTexture(id: string, data: Uint8Array): WebGLTexture {
+    const { gl } = this;
+    let texture = this.textures.get(id);
+
+    if (!texture) {
+      texture = gl.createTexture()!;
+      this.textures.set(id, texture);
+    }
+
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); // Ensure tight packing for colormap
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      data.length / 4,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      data
+    );
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    return texture;
+  }
+
+  /**
+   * Get a texture by ID
+   */
+  getTexture(id: string): WebGLTexture | undefined {
+    return this.textures.get(id);
+  }
+
+  private renderBar(
+    buffer: WebGLBuffer,
+    count: number,
+    uniforms: { scale: [number, number]; translate: [number, number] },
+    color: [number, number, number, number]
+  ): void {
+    const { gl } = this;
+    const prog = this.lineProgram; // Use color shader
+
+    gl.useProgram(prog.program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.enableVertexAttribArray(prog.attributes.position);
+    gl.vertexAttribPointer(prog.attributes.position, 2, gl.FLOAT, false, 0, 0);
+
+    gl.uniform2f(prog.uniforms.uScale, uniforms.scale[0], uniforms.scale[1]);
+    gl.uniform2f(prog.uniforms.uTranslate, uniforms.translate[0], uniforms.translate[1]);
+    gl.uniform4f(prog.uniforms.uColor, color[0], color[1], color[2], color[3]);
+
+    // Bar uses TRIANGLES arranged as quads
+    // interleaveBarData produces 6 vertices per point (2 triangles)
+    gl.drawArrays(gl.TRIANGLES, 0, count * 6);
 
     gl.disableVertexAttribArray(prog.attributes.position);
   }

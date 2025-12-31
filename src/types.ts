@@ -54,7 +54,7 @@ export interface AxisOptions {
 // Series Types
 // ============================================
 
-export type SeriesType = "line" | "scatter" | "line+scatter" | "step" | "step+scatter" | "band" | "area";
+export type SeriesType = "line" | "scatter" | "line+scatter" | "step" | "step+scatter" | "band" | "area" | "bar" | "heatmap";
 
 /** Step mode defines where the step occurs */
 export type StepMode = "before" | "after" | "center";
@@ -161,6 +161,68 @@ export interface SeriesUpdateData {
   y2?: Float32Array | Float64Array;
   /** If true, append to existing data; if false, replace */
   append?: boolean;
+}
+
+// ============================================
+// Bar Chart Types
+// ============================================
+
+export interface BarStyle extends Omit<SeriesStyle, 'pointSize' | 'symbol' | 'smoothing' | 'stepMode'> {
+  /** Bar width in data units (auto if not specified) */
+  barWidth?: number;
+  /** Gap between bars as a fraction of bar width (default: 0.2) */
+  barGap?: number;
+  /** Bar alignment: 'center' (default) | 'edge' */
+  barAlign?: 'center' | 'edge';
+}
+
+// ============================================
+// Heatmap Types
+// ============================================
+
+/** Color scale names for heatmaps */
+export type ColorScaleName = 'viridis' | 'plasma' | 'inferno' | 'magma' | 'jet' | 'grayscale';
+
+/** Interpolation method for heatmap rendering */
+export type InterpolationType = 'nearest' | 'bilinear';
+
+export interface ColorScale {
+  /** Color scale name */
+  name: ColorScaleName;
+  /** Minimum value for color mapping */
+  min?: number;
+  /** Maximum value for color mapping */
+  max?: number;
+  /** Use logarithmic scale (default: false) */
+  logScale?: boolean;
+}
+
+export interface HeatmapData {
+  /** X-axis values (column positions) */
+  xValues: Float32Array | Float64Array | number[];
+  /** Y-axis values (row positions) */
+  yValues: Float32Array | Float64Array | number[];
+  /** Z-values (intensity) as flattened 2D matrix [row-major order] */
+  zValues: Float32Array | Float64Array | number[];
+}
+
+export interface HeatmapStyle {
+  /** Color scale configuration */
+  colorScale?: ColorScale;
+  /** Interpolation method (default: 'bilinear') */
+  interpolation?: InterpolationType;
+  /** Show colorbar legend (default: true) */
+  showColorbar?: boolean;
+  /** Opacity (default: 1.0) */
+  opacity?: number;
+}
+
+export interface HeatmapOptions extends Omit<SeriesOptions, 'data' | 'style'> {
+  type: 'heatmap';
+  /** Heatmap data with X, Y, Z values */
+  data: HeatmapData;
+  /** Heatmap-specific styling */
+  style?: HeatmapStyle;
 }
 
 // ============================================

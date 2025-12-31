@@ -6,6 +6,8 @@
 export {
   NativeWebGLRenderer,
   interleaveData,
+  interleaveStepData,
+  interleaveBandData,
   parseColor,
   type NativeSeriesRenderData,
   type NativeRenderOptions,
@@ -21,3 +23,9 @@ export {
 } from './RendererInterface';
 
 export * from './shaders';
+
+// Bar Chart Utilities
+export { interleaveBarData, calculateBarWidth } from './BarRenderer';
+
+// Heatmap Utilities
+export { interleaveHeatmapData, getColormap } from './HeatmapRenderer';

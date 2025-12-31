@@ -5,7 +5,7 @@
  * Currently optimized for NativeWebGLRenderer (zero dependencies).
  */
 
-import type { Bounds, SeriesStyle } from '../types';
+import type { Bounds } from '../types';
 import { NativeWebGLRenderer } from './NativeWebGLRenderer';
 
 // ============================================
@@ -16,9 +16,11 @@ export interface SeriesRenderData {
   id: string;
   buffer: WebGLBuffer;
   count: number;
-  style: SeriesStyle;
+  style: any;
   visible: boolean;
-  type: 'line' | 'scatter';
+  type: string;
+  zBounds?: { min: number; max: number };
+  colormapTexture?: WebGLTexture;
 }
 
 export interface RenderOptions {
@@ -53,6 +55,11 @@ export interface IWebGLRenderer {
    * Delete a buffer and free GPU memory
    */
   deleteBuffer(id: string): void;
+  
+  /** 
+   * Create a 1D texture for heatmaps 
+   */
+  createColormapTexture(id: string, data: Uint8Array): WebGLTexture;
 
   /**
    * Render a frame with all visible series

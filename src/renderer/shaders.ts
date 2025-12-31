@@ -208,6 +208,47 @@ void main() {
 }
 `;
 
+/**
+ * Bar Chart Vertex Shader
+ * 
+ * Renders rectangular bars using quad primitives.
+ */
+export const barVertexShader = `
+precision highp float;
+
+// Attributes
+attribute vec2 position;  // Corner position of bar quad [x, y]
+attribute vec2 barData;   // [barX, barY] - center and height of bar
+
+// Uniforms
+uniform vec2 uScale;
+uniform vec2 uTranslate;
+uniform float uBarWidth;  // Width of bars in data units
+
+void main() {
+  // Calculate bar corner in data space
+  float halfWidth = uBarWidth * 0.5;
+  vec2 dataPos = vec2(
+    barData.x + position.x * halfWidth,  // X: center ± halfWidth
+    position.y * barData.y                // Y: 0 to barY
+  );
+  
+  // Transform to clip space
+  vec2 clipPos = dataPos * uScale + uTranslate;
+  gl_Position = vec4(clipPos, 0.0, 1.0);
+}
+`;
+
+export const barFragmentShader = `
+precision highp float;
+
+uniform vec4 uColor;
+
+void main() {
+  gl_FragColor = uColor;
+}
+`;
+
 // Export all shaders as a bundle
 export const Shaders = {
   line: {
@@ -221,6 +262,10 @@ export const Shaders = {
   point: {
     vertex: pointVertexShader,
     fragment: pointFragmentShader,
+  },
+  bar: {
+    vertex: barVertexShader,
+    fragment: barFragmentShader,
   },
   heatmap: {
     vertex: heatmapVertexShader,
