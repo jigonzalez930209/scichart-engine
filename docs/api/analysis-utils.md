@@ -257,3 +257,74 @@ const prefix = getBestPrefix(0.000001)
 const scaled = 0.000001 / prefix.factor  // 1
 console.log(`${scaled} ${prefix.symbol}A`)  // "1 µA"
 ```
+
+---
+
+## integrate
+
+Numerical integration using the trapezoidal rule. Essential for calculating areas under curves (e.g., total charge, energy).
+
+```typescript
+function integrate(
+  x: number[] | Float32Array,
+  y: number[] | Float32Array,
+  xMin?: number,
+  xMax?: number
+): number
+```
+
+### Parameters
+
+| Name | Type | Description |
+|------|------|-------------|
+| `x` | `number[] \| Float32Array` | X values (must be sorted). |
+| `y` | `number[] \| Float32Array` | Y values. |
+| `xMin` | `number` | Optional: start of integration range (in X units). |
+| `xMax` | `number` | Optional: end of integration range (in X units). |
+
+### Example
+
+```typescript
+import { integrate } from 'scichart-engine/analysis'
+
+const area = integrate(xData, yData, 0.2, 0.8)
+console.log(`Peak Area: ${area.toFixed(4)}`)
+```
+
+---
+
+## subtractBaseline
+
+Subtract a linear baseline from a dataset. Useful for removing drift or constant backgrounds.
+
+```typescript
+function subtractBaseline(
+  x: number[] | Float32Array,
+  y: number[] | Float32Array,
+  x1: number,
+  x2: number
+): Float32Array
+```
+
+### Parameters
+
+| Name | Type | Description |
+|------|------|-------------|
+| `x` | `number[] \| Float32Array` | X values. |
+| `y` | `number[] \| Float32Array` | Y values. |
+| `x1` | `number` | X coordinate of the first baseline point. |
+| `x2` | `number` | X coordinate of the second baseline point. |
+
+### Example
+
+```typescript
+import { subtractBaseline } from 'scichart-engine/analysis'
+
+// Subtract background using points at x=0.1 and x=0.9
+const correctedY = subtractBaseline(xData, yData, 0.1, 0.9)
+
+chart.addSeries({
+  id: 'corrected',
+  data: { x: xData, y: correctedY }
+})
+```

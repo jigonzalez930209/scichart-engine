@@ -50,6 +50,24 @@ Multiple data series with different colors.
 
 ---
 
+### Curve Fitting
+
+Automatic trend lines and regression analysis (Linear, Polynomial, etc.).
+
+<ChartDemo type="fitting" height="300px" />
+
+[View full example →](/examples/curve-fitting)
+
+---
+
+### Peak Analysis
+
+Baseline correction and area integration for scientific signals.
+
+<ChartDemo type="analysis" height="300px" />
+
+[View full example →](/examples/analysis)
+
 ## Quick Links
 
 | Example | Description | Key Feature |
@@ -58,6 +76,8 @@ Multiple data series with different colors.
 | [Real-time](/examples/realtime) | Streaming data | `requestAnimationFrame` |
 | [Large Datasets](/examples/large-datasets) | 1M+ points | WebGL performance |
 | [React](/examples/react) | React integration | Components & hooks |
+| [Curve Fitting](/examples/curve-fitting) | Regression analysis | Trend lines & labels |
+| [Peak Analysis](/examples/analysis) | Integration/Baseline | Area calculation |
 
 ## Code Snippets
 

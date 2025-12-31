@@ -1,7 +1,7 @@
 # 🚀 SciChart Engine - Development Roadmap
 
 > **Versión actual**: v0.1.1  
-> **Última actualización**: 2025-12-31  
+> **Última actualización**: 2025-12-31 (17:25)  
 > **Objetivo**: Convertir SciChart Engine en la librería de charting científico WebGL/WebGPU más potente y accesible del ecosistema open-source.
 
 ---
@@ -16,8 +16,13 @@
 | **Series** | Line charts | ✅ Completo |
 | **Series** | Scatter plots | ✅ Completo |
 | **Series** | Line+Scatter combo | ✅ Completo |
+| **Series** | Step Charts | ✅ Completo |
+| **Series** | Error Bars | ✅ Completo |
+| **Series** | Band Series (Area Fill) | ✅ Completo |
+| **Series** | Scatter Symbols (SDF) | ✅ Completo |
 | **Interacciones** | Pan (arrastrar) | ✅ Completo |
 | **Interacciones** | Wheel Zoom | ✅ Completo |
+| **Interacciones** | Wheel Zoom por Eje | ✅ Completo |
 | **Interacciones** | Box Zoom | ✅ Completo |
 | **Interacciones** | Cursor/Crosshair | ✅ Completo |
 | **Temas** | Dark, Midnight, Light, Electrochemistry | ✅ Completo |
@@ -25,41 +30,64 @@
 | **React** | Hook useSciChart | ✅ Completo |
 | **Análisis** | Cycle Detection | ✅ Completo |
 | **Análisis** | Peak Detection | ✅ Completo |
+| **Análisis** | Peak Integration | ✅ Completo |
+| **Análisis** | Baseline Subtraction | ✅ Completo |
 | **Análisis** | LTTB Downsampling | ✅ Completo |
 | **Análisis** | Moving Average | ✅ Completo |
+| **Análisis** | Curve Fitting (Linear, Poly, Exp) | ✅ Completo |
+| **Análisis** | Statistics Panel | ✅ Completo |
 | **Análisis** | SI Prefix Formatting | ✅ Completo |
 | **UI** | Controls Panel | ✅ Completo |
 | **UI** | Legend (draggable) | ✅ Completo |
 | **Export** | PNG/JPEG Image | ✅ Completo |
+| **Export** | CSV/JSON Data | ✅ Completo |
+| **Multiple Axes** | Multi Y-Axes | ✅ Completo |
+| **Annotations** | Annotations System | ✅ Completo |
+| **Streaming** | Real-time Append | ✅ Completo |
+| **Streaming** | Rolling Window | ✅ Completo |
+| **Streaming** | Auto-scroll | ✅ Completo |
 
 ### 🏗️ Arquitectura Actual
 
 ```
 src/
 ├── core/
-│   ├── Chart.ts              # Orquestador principal (~770 LOC)
-│   ├── ChartControls.ts      # Panel de controles
-│   ├── ChartLegend.ts        # Leyenda draggable
-│   ├── EventEmitter.ts       # Sistema de eventos
-│   ├── InteractionManager.ts # Manejo de interacciones
-│   ├── OverlayRenderer.ts    # Capa de anotaciones
-│   └── Series.ts             # Gestión de series
+│   ├── Chart.ts              # Re-exports (~22 LOC)
+│   ├── chart/                 # Módulos refactorizados
+│   │   ├── ChartCore.ts       # Clase principal (~340 LOC)
+│   │   ├── ChartExporter.ts   # Export CSV/JSON/Image (~142 LOC)
+│   │   ├── ChartNavigation.ts # Zoom/Pan/AutoScale (~259 LOC)
+│   │   ├── ChartRenderer.ts   # Render loop (~214 LOC)
+│   │   ├── ChartSeries.ts     # Series CRUD (~220 LOC)
+│   │   ├── ChartSetup.ts      # Inicialización (~195 LOC)
+│   │   ├── types.ts           # Interfaces (~84 LOC)
+│   │   └── index.ts           # Barrel export
+│   ├── ChartControls.ts       # Panel de controles
+│   ├── ChartLegend.ts         # Leyenda draggable
+│   ├── ChartStatistics.ts     # Panel de estadísticas
+│   ├── EventEmitter.ts        # Sistema de eventos
+│   ├── InteractionManager.ts  # Manejo de interacciones
+│   ├── OverlayRenderer.ts     # Capa de anotaciones
+│   └── Series.ts              # Gestión de series
 ├── renderer/
 │   ├── NativeWebGLRenderer.ts # Renderer WebGL puro
-│   └── shaders.ts            # Shaders GLSL
+│   └── shaders.ts             # Shaders GLSL
 ├── overlay/
-│   └── CanvasOverlay.ts      # Canvas 2D para ejes/texto
+│   └── CanvasOverlay.ts       # Canvas 2D para ejes/texto
 ├── analysis/
-│   └── utils.ts              # Utilidades de análisis
+│   ├── index.ts               # Barrel export
+│   ├── math.ts                # Curve fitting (linear, poly, exp)
+│   ├── peaks.ts               # Peak detection & integration
+│   └── utils.ts               # Utilidades de análisis
 ├── workers/
-│   └── downsample.ts         # Algoritmos de downsampling
+│   └── downsample.ts          # Algoritmos de downsampling
 ├── theme/
-│   └── index.ts              # Sistema de temas
+│   └── index.ts               # Sistema de temas
 ├── react/
-│   ├── SciChart.tsx          # Componente React
-│   └── useSciChart.ts        # Hook personalizado
+│   ├── SciChart.tsx           # Componente React
+│   └── useSciChart.ts         # Hook personalizado
 └── scales/
-    └── index.ts              # Escalas lineal/log
+    └── index.ts               # Escalas lineal/log
 ```
 
 ---
@@ -220,17 +248,18 @@ const chart = createChart({
 
 | Feature | Prioridad | Esfuerzo | Dependencias |
 |---------|-----------|----------|--------------|
-| **Annotations System** | 🔴 Alta | 3 días | OverlayRenderer |
-| • Horizontal lines | | 0.5 días | |
-| • Vertical lines | | 0.5 días | |
-| • Rectangles/Bands | | 0.5 días | |
-| • Text labels | | 0.5 días | |
-| • Arrows | | 1 día | |
-| **Multiple Y-Axes** | 🔴 Alta | 4 días | Core refactor |
-| **Step Charts** | 🟡 Media | 0.5 días | Shaders |
-| **Error Bars** | 🟡 Media | 2 días | Series system |
-| **Scatter Symbols** | 🟢 Baja | 1 día | Point shader |
-| **Export CSV/JSON** | 🟢 Baja | 0.5 días | None |
+| **Annotations System** | 🔴 Alta | ✅ Completo | OverlayRenderer |
+| • Horizontal lines | | ✅ | |
+| • Vertical lines | | ✅ | |
+| • Rectangles/Bands | | ✅ | |
+| • Text labels | | ✅ | |
+| • Arrows | | ✅ | |
+| **Multiple Y-Axes** | 🔴 Alta | ✅ Completo | Core refactor |
+| **Step Charts** | 🟡 Media | ✅ Completo | Shaders |
+| **Error Bars** | 🟡 Media | ✅ Completo | Series system |
+| **Scatter Symbols** | 🟢 Baja | ✅ Completo | Point shader |
+| **Export CSV/JSON** | 🟢 Baja | ✅ Completo | None |
+| **Partial Buffer Update**| 🔴 Alta | ✅ Completo | WebGL optimization |
 
 <details>
 <summary>📝 Especificación: Sistema de Anotaciones</summary>
@@ -313,10 +342,10 @@ chart.addSeries({
 
 | Feature | Prioridad | Esfuerzo | Dependencias |
 |---------|-----------|----------|--------------|
-| **Rolling Window Buffer** | 🔴 Alta | 3 días | Buffer refactor |
-| **Append-Only Mode** | 🔴 Alta | 2 días | Series update |
-| **Threshold Lines** | 🟡 Media | 1 día | Annotations |
-| **Auto-scroll** | 🟡 Media | 1 día | Rolling buffer |
+| **Rolling Window Buffer** | 🔴 Alta | ✅ Completo | Series system |
+| **Append-Only Mode** | 🔴 Alta | ✅ Completo | WebGL optimization |
+| **Auto-scroll** | 🟡 Media | ✅ Completo | View management |
+| **Threshold Lines** | 🟡 Media | ✅ Completo | Annotations |
 | **WebSocket Helpers** | 🟢 Baja | 2 días | None |
 
 <details>
@@ -351,12 +380,12 @@ chart.setAutoScroll(true);
 
 | Feature | Prioridad | Esfuerzo | Dependencias |
 |---------|-----------|----------|--------------|
-| **Linear Fitting** | 🔴 Alta | 2 días | Math utils |
-| **Polynomial Fitting** | 🔴 Alta | 3 días | Linear fitting |
-| **Baseline Correction** | 🟡 Media | 2 días | None |
-| **Peak Integration** | 🟡 Media | 3 días | Peak detection |
-| **Derivative/Integral** | 🟡 Media | 2 días | None |
-| **Statistics Panel** | 🟢 Baja | 2 días | Analysis utils |
+| **Linear Fitting** | 🔴 Alta | ✅ Completo | Math utils |
+| **Polynomial Fitting** | 🔴 Alta | ✅ Completo | Linear fitting |
+| **Baseline Correction** | 🟡 Media | ✅ Completo | None |
+| **Peak Integration** | 🟡 Media | ✅ Completo | Peak detection |
+| **Derivative/Integral** | 🟡 Media | ✅ Completo | None |
+| **Statistics Panel** | 🟢 Baja | ✅ Completo | Analysis utils |
 
 <details>
 <summary>📝 Especificación: Curve Fitting</summary>
@@ -620,19 +649,28 @@ Cada feature tiene un nivel de dificultad:
 
 ## 🏁 Próximos Pasos Inmediatos
 
-### Esta Semana
+### Esta Semana ✅ COMPLETADO (2025-12-31)
 
-1. [ ] Crear issues en GitHub para FASE 1
-2. [ ] Implementar sistema de Annotations básico
-3. [ ] Diseñar API para Multiple Y-Axes
-4. [ ] Agregar tests para features existentes
+1. [x] ~~Crear issues en GitHub para FASE 1~~ Fase 1 completada
+2. [x] ~~Implementar sistema de Annotations básico~~ ✅ Completo
+3. [x] ~~Diseñar API para Multiple Y-Axes~~ ✅ Completo
+4. [x] ~~Agregar tests para features existentes~~ Documentación agregada
+5. [x] **Band Series** - Soporte para area fill entre dos curvas ✅ NUEVO
+6. [x] **Peak Analysis Demo** - Demo interactiva con baseline, integración y anotaciones ✅ NUEVO
+7. [x] **Statistics Panel** - Panel colapsable con Min/Max/Mean/Count/Area ✅ NUEVO
+8. [x] **Curve Fitting** - Linear, Polynomial y Exponential fitting ✅ NUEVO
+9. [x] **Refactorización Chart.ts** - Dividido en 8 módulos (<250 LOC cada uno) ✅ NUEVO
+10. [x] **Bug fixes** - Leyenda vacía, zoom en eje Y secundario ✅ CORREGIDO
 
-### Este Mes  
+### Próximos Pasos
 
-1. [ ] Completar FASE 1 (v0.2.0)
-2. [ ] Publicar v0.2.0 en NPM
-3. [ ] Escribir blog post anunciando roadmap
-4. [ ] Iniciar FASE 2
+1. [ ] Publicar v0.2.0 en NPM con todas las mejoras
+2. [x] ~~Escribir documentación para curve fitting y peak analysis~~ ✅ Completo
+3. [x] ~~Area Charts (stacked fill)~~ ✅ Completo - Nuevo tipo de serie 'area'
+4. [ ] Heatmaps
+5. [ ] Tests unitarios para nuevos módulos
+6. [x] **Documentación Band Series** - API docs para series tipo 'band' ✅ NUEVO
+7. [x] **Documentación Statistics Panel** - API docs para el panel de estadísticas ✅ NUEVO
 
 ---
 

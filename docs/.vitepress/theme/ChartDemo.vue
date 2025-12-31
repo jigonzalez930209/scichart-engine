@@ -3,16 +3,26 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useData } from 'vitepress'
 
 const props = defineProps<{
-  type?: 'basic' | 'realtime' | 'large' | 'scatter' | 'multi' | 'annotations' | 'step' | 'errorbars' | 'symbols' | 'multi-axis'
+  type?: 'basic' | 'realtime' | 'large' | 'scatter' | 'multi' | 'annotations' | 'step' | 'errorbars' | 'symbols' | 'multi-axis' | 'fitting' | 'analysis' | 'area'
   height?: string
   points?: number
 }>()
+
+
 
 const { isDark } = useData()
 const chartContainer = ref<HTMLElement | null>(null)
 const fps = ref(0)
 const pointCount = ref(0)
 const isRunning = ref(false)
+const windowSize = ref<number | null>(50000) // null = infinite
+const windowSizeOptions = [
+  { label: '10K', value: 10000 },
+  { label: '20K', value: 20000 },
+  { label: '50K', value: 50000 },
+  { label: '100K', value: 100000 },
+  { label: '∞ Infinite', value: null }
+]
 
 let chart: any = null
 let animationId: number | null = null
@@ -109,6 +119,12 @@ function initDemo() {
     generateSymbolsDemo()
   } else if (type === 'multi-axis') {
     generateMultiAxisDemo()
+  } else if (type === 'fitting') {
+    generateFittingDemo()
+  } else if (type === 'analysis') {
+    generateAnalysisDemo()
+  } else if (type === 'area') {
+    generateAreaDemo()
   } else {
     generateBasicData(n)
   }
@@ -453,6 +469,211 @@ function generateMultiAxisDemo() {
   pointCount.value = n * 2;
 }
 
+function generateFittingDemo() {
+  // 1. Linear Calibration Example
+  const n1 = 12
+  const x1 = new Float32Array(n1)
+  const y1 = new Float32Array(n1)
+  for (let i = 0; i < n1; i++) {
+    x1[i] = (i + 1) * 0.1
+    y1[i] = x1[i] * 45 + 5 + (Math.random() - 0.5) * 4
+  }
+  
+  chart.addSeries({
+    id: 'calibration',
+    type: 'scatter',
+    data: { x: x1, y: y1 },
+    style: { color: '#00f2ff', pointSize: 8, symbol: 'circle' }
+  })
+  
+  // Apply linear fit
+  chart.addFitLine('calibration', 'linear', { precision: 3 })
+
+  // 2. Polynomial Fit Example
+  const n2 = 25
+  const x2 = new Float32Array(n2)
+  const y2 = new Float32Array(n2)
+  for (let i = 0; i < n2; i++) {
+    const t = (i / (n2 - 1)) * 4 - 2
+    x2[i] = t
+    y2[i] = (t * t * t) - (2 * t * t) + t + 10 + (Math.random() - 0.5) * 2
+  }
+  
+  chart.addSeries({
+    id: 'noisy-data',
+    type: 'scatter',
+    data: { x: x2, y: y2 },
+    style: { color: '#ff6b6b', pointSize: 6, symbol: 'square' }
+  })
+  
+  // Apply 3rd degree polynomial fit
+  chart.addFitLine('noisy-data', 'polynomial', { degree: 3, precision: 2 })
+  
+  pointCount.value = n1 + n2
+}
+
+function generateAnalysisDemo() {
+  // Generate a peak with a linear drift baseline
+  const n = 100
+  const x = new Float32Array(n)
+  const y = new Float32Array(n)
+  
+  const peakCenter = 0.5
+  const peakWidth = 0.08
+  const peakHeight = 10
+  
+  for (let i = 0; i < n; i++) {
+    const val = i / (n - 1)
+    x[i] = val
+    // Gaussian peak + linear baseline (y = 2x + 1) + noise
+    const gaussian = peakHeight * Math.exp(-Math.pow(val - peakCenter, 2) / (2 * Math.pow(peakWidth, 2)))
+    const baseline = 2 * val + 1
+    y[i] = gaussian + baseline + (Math.random() - 0.5) * 0.1
+  }
+
+  // 1. Calculate baseline points (anchors at x=0.15 and x=0.85)
+  const x1 = 0.15
+  const x2 = 0.85
+  const i1 = Math.floor(x1 * n)
+  const i2 = Math.floor(x2 * n)
+  const y1 = y[i1]
+  const y2 = y[i2]
+
+  const slope = (y2 - y1) / (x[i2] - x[i1])
+  const intercept = y1 - slope * x[i1]
+  const getBaseline = (xv) => slope * xv + intercept
+
+  // Create baseline data for the full range for the band fill
+  const yBaseline = new Float32Array(n)
+  for (let i = 0; i < n; i++) {
+    yBaseline[i] = getBaseline(x[i])
+  }
+
+  // 2. Add Area Fill (Band Series)
+  // ONLY for the points between x1 and x2
+  const bandX = x.slice(i1, i2 + 1)
+  const bandY = y.slice(i1, i2 + 1)
+  const bandBaseline = yBaseline.slice(i1, i2 + 1)
+
+  chart.addSeries({
+    id: 'peak-fill',
+    type: 'band',
+    data: { x: bandX, y: bandY, y2: bandBaseline },
+    style: { color: '#ffcc00', opacity: 0.4 }
+  })
+  
+  // 3. Add Raw Data
+  chart.addSeries({
+    id: 'raw-data',
+    type: 'line',
+    data: { x, y },
+    style: { color: '#ffcc00', width: 2.5 }
+  })
+
+  // 4. Add Baseline Line (Clipped to integration range)
+  chart.addSeries({
+    id: 'baseline-line',
+    type: 'line',
+    data: { 
+      x: new Float32Array([x1, x2]), 
+      y: new Float32Array([y1, y2]) 
+    },
+    style: { color: '#00f2ff', width: 2, lineDash: [5, 5], opacity: 1 }
+  })
+
+  // 5. Add Anchor Points
+  chart.addSeries({
+    id: 'anchors',
+    type: 'scatter',
+    data: { x: new Float32Array([x1, x2]), y: new Float32Array([y1, y2]) },
+    style: { color: '#00f2ff', pointSize: 8, symbol: 'circle' }
+  })
+
+  // 6. Calculate Area
+  const totalArea = chart.analysis.integrate(x, y, x1, x2)
+  const baselineArea = (x2 - x1) * (y1 + y2) / 2
+  const peakArea = totalArea - baselineArea
+
+  chart.addAnnotation({
+    type: 'text',
+    x: peakCenter,
+    y: 12,
+    text: `Peak Area: ${peakArea.toFixed(4)}\n(Background Subtracted)`,
+    color: '#ffffff',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: 8,
+    anchor: 'bottom-center',
+    borderRadius: 4
+  })
+
+  pointCount.value = n
+}
+
+function generateAreaDemo() {
+  const n = 200
+  const x = new Float32Array(n)
+  
+  // Dataset 1: Sine wave
+  const y1 = new Float32Array(n)
+  // Dataset 2: Shifted sine
+  const y2 = new Float32Array(n)
+  // Dataset 3: Damped oscillation
+  const y3 = new Float32Array(n)
+  
+  for (let i = 0; i < n; i++) {
+    x[i] = i / 10
+    y1[i] = Math.sin(x[i]) * 0.5 + 0.6
+    y2[i] = Math.sin(x[i] + 1) * 0.4 + 0.4
+    y3[i] = Math.sin(x[i] * 2) * Math.exp(-x[i] / 10) * 0.3 + 0.8
+  }
+  
+  // Add areas back-to-front for proper layering
+  chart.addSeries({
+    id: 'area-3',
+    type: 'area',
+    data: { x, y: y3 },
+    style: { color: 'rgba(255, 85, 85, 0.4)' }
+  })
+  
+  chart.addSeries({
+    id: 'area-2',
+    type: 'area',
+    data: { x, y: y2 },
+    style: { color: 'rgba(255, 234, 0, 0.4)' }
+  })
+  
+  chart.addSeries({
+    id: 'area-1',
+    type: 'area',
+    data: { x, y: y1 },
+    style: { color: 'rgba(0, 242, 255, 0.4)' }
+  })
+  
+  // Add line overlays for clarity
+  chart.addSeries({
+    id: 'line-1',
+    type: 'line',
+    data: { x, y: y1 },
+    style: { color: '#00f2ff', width: 2 }
+  })
+  
+  chart.addSeries({
+    id: 'line-2',
+    type: 'line',
+    data: { x, y: y2 },
+    style: { color: '#ffea00', width: 2 }
+  })
+  
+  chart.addSeries({
+    id: 'line-3',
+    type: 'line',
+    data: { x, y: y3 },
+    style: { color: '#ff5555', width: 2 }
+  })
+  
+  pointCount.value = n * 3
+}
+
 function generateAnnotationsDemo() {
   // Generate a simple CV-like waveform
   const n = 2000
@@ -555,14 +776,20 @@ function startRealtime() {
   dataRef = { x: new Float32Array(0), y: new Float32Array(0) }
   tRef = 0
   
-  chart.addSeries({
+  // Build series options with optional maxPoints for rolling window
+  const seriesOptions: any = {
     id: 'stream',
     type: 'line',
     data: dataRef,
     style: { color: '#00f2ff', width: 2 },
-    maxPoints: 50000 // Enable rolling window
-  })
-
+  }
+  
+  // Only set maxPoints if a window size is selected (not infinite)
+  if (windowSize.value !== null) {
+    seriesOptions.maxPoints = windowSize.value
+  }
+  
+  chart.addSeries(seriesOptions)
   chart.setAutoScroll(true);
   
   let lastUpdate = performance.now()
@@ -644,11 +871,21 @@ function resetDemo() {
         <span class="stat" :class="{ good: fps >= 55, warn: fps >= 30 && fps < 55, bad: fps < 30 }">
           🚀 <strong>{{ fps }}</strong> FPS
         </span>
+        <span v-if="type === 'realtime'" class="stat">
+          📏 Window: <strong>{{ windowSize === null ? '∞' : (windowSize / 1000) + 'K' }}</strong>
+        </span>
       </div>
       <div class="chart-controls">
-        <button v-if="type === 'realtime'" @click="toggleRealtime" class="btn">
-          {{ isRunning ? '⏸ Pause' : '▶ Start' }}
-        </button>
+        <template v-if="type === 'realtime'">
+          <button @click="toggleRealtime" class="btn btn-primary">
+            {{ isRunning ? '⏸ Pause' : '▶ Start' }}
+          </button>
+          <select v-model="windowSize" @change="resetDemo" class="btn select" :disabled="isRunning">
+            <option v-for="opt in windowSizeOptions" :key="opt.label" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </template>
         <button @click="resetDemo" class="btn">🔄 Reset</button>
       </div>
     </div>
@@ -658,6 +895,9 @@ function resetDemo() {
       :style="{ height: height || '400px' }"
     ></div>
     <p class="chart-hint">
+      <template v-if="type === 'realtime'">
+        Use the dropdown to change window size (requires reset) • 
+      </template>
       Scroll to zoom • Drag to pan • Right-drag for box zoom
     </p>
   </div>
@@ -714,6 +954,31 @@ function resetDemo() {
 .btn:hover {
   background: var(--vp-c-bg-mute);
   border-color: var(--vp-c-brand);
+}
+
+.btn-primary {
+  background: var(--vp-c-brand);
+  color: white;
+  border-color: var(--vp-c-brand);
+}
+
+.btn-primary:hover {
+  background: var(--vp-c-brand-dark);
+}
+
+.btn.select {
+  min-width: 80px;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+
+.btn.select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .chart-container {
