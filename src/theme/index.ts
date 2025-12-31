@@ -152,8 +152,8 @@ const DEFAULT_LEGEND_THEME: LegendTheme = {
   textColor: "#ffffff",
   fontSize: 11,
   fontFamily: "Inter, system-ui, sans-serif",
-  padding: 10,
-  itemGap: 6,
+  padding: 5,
+  itemGap: 3,
   swatchSize: 12,
 };
 
