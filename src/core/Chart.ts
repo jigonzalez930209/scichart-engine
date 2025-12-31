@@ -20,15 +20,17 @@ import { Series } from "./Series";
 import {
   NativeWebGLRenderer,
   interleaveData,
+  interleaveStepData,
   parseColor,
   type NativeSeriesRenderData as SeriesRenderData,
 } from "../renderer/NativeWebGLRenderer";
 import { LinearScale, LogScale, type Scale } from "../scales";
 import { DEFAULT_THEME, getThemeByName, type ChartTheme } from "../theme";
 import { OverlayRenderer, type CursorState } from "./OverlayRenderer";
-import { InteractionManager } from "./InteractionManager";
+import { InteractionManager, type AxisLayout } from "./InteractionManager";
 import { ChartControls } from "./ChartControls";
 import { ChartLegend } from "./ChartLegend";
+import { AnnotationManager, type Annotation } from "./annotations";
 
 // ============================================
 // Layout Constants
@@ -46,6 +48,9 @@ export interface Chart {
   updateSeries(id: string, data: SeriesUpdateData): void;
   getSeries(id: string): Series | undefined;
   getAllSeries(): Series[];
+  appendData(id: string, x: number[] | Float32Array, y: number[] | Float32Array): void;
+  setAutoScroll(enabled: boolean): void;
+  setMaxPoints(id: string, maxPoints: number): void;
   zoom(options: ZoomOptions): void;
   pan(deltaX: number, deltaY: number): void;
   resetZoom(): void;
@@ -66,6 +71,28 @@ export interface Chart {
   exportImage(type?: "png" | "jpeg"): string;
   autoScale(): void;
   setTheme(theme: string | object): void;
+  // Annotation methods
+  addAnnotation(annotation: Annotation): string;
+  removeAnnotation(id: string): boolean;
+  updateAnnotation(id: string, updates: Partial<Annotation>): void;
+  getAnnotation(id: string): Annotation | undefined;
+  getAnnotations(): Annotation[];
+  clearAnnotations(): void;
+  // Export methods
+  exportCSV(options?: ExportOptions): string;
+  exportJSON(options?: ExportOptions): string;
+}
+
+/** Options for data export */
+export interface ExportOptions {
+  /** Series IDs to export (default: all) */
+  seriesIds?: string[];
+  /** Include headers in CSV (default: true) */
+  includeHeaders?: boolean;
+  /** Decimal precision (default: 6) */
+  precision?: number;
+  /** CSV delimiter (default: ',') */
+  delimiter?: string;
 }
 
 // ============================================
@@ -88,7 +115,10 @@ class ChartImpl implements Chart {
   };
 
   private xAxisOptions: AxisOptions;
-  private yAxisOptions: AxisOptions;
+  // Map of Y-axis ID -> Options
+  private yAxisOptionsMap: Map<string, AxisOptions> = new Map();
+  private primaryYAxisId: string = 'default';
+
   private dpr: number;
   private backgroundColor: [number, number, number, number];
 
@@ -96,7 +126,16 @@ class ChartImpl implements Chart {
   private overlay: OverlayRenderer;
   private interaction: InteractionManager;
   private xScale: Scale;
-  private yScale: Scale;
+  // Map of Y-axis ID -> Scale
+  private yScales: Map<string, Scale> = new Map();
+  // Getter for backward compatibility (returns primary scale)
+  private get yScale(): Scale {
+    return (this.yScales.get(this.primaryYAxisId) || this.yScales.values().next().value) as Scale;
+  }
+  // Getter for backward compatibility
+  private get yAxisOptions(): AxisOptions {
+    return (this.yAxisOptionsMap.get(this.primaryYAxisId) || this.yAxisOptionsMap.values().next().value) as AxisOptions;
+  }
   private theme: ChartTheme;
 
   private cursorOptions: CursorOptions | null = null;
@@ -108,12 +147,14 @@ class ChartImpl implements Chart {
   private animationFrameId: number | null = null;
   private needsRender = false;
   private isDestroyed = false;
+  private autoScroll = false;
   private selectionRect: {
     x: number;
     y: number;
     width: number;
     height: number;
   } | null = null;
+  private annotationManager: AnnotationManager = new AnnotationManager();
 
   constructor(options: ChartOptions) {
     const container = options.container;
@@ -134,13 +175,40 @@ class ChartImpl implements Chart {
     this.backgroundColor = [bgColor[0], bgColor[1], bgColor[2], bgColor[3]];
     this.showLegend = options.showLegend ?? this.theme.legend.visible;
     this.showControls = options.showControls ?? false;
+    this.autoScroll = options.autoScroll ?? false;
 
     this.xAxisOptions = { scale: "linear", auto: true, ...options.xAxis };
-    this.yAxisOptions = { scale: "linear", auto: true, ...options.yAxis };
-    this.xScale =
-      this.xAxisOptions.scale === "log" ? new LogScale() : new LinearScale();
-    this.yScale =
-      this.yAxisOptions.scale === "log" ? new LogScale() : new LinearScale();
+    this.xScale = this.xAxisOptions.scale === "log" ? new LogScale() : new LinearScale();
+
+    // Process Y Axes
+    const providedYAxes = options.yAxis 
+      ? (Array.isArray(options.yAxis) ? options.yAxis : [options.yAxis])
+      : [{}]; // Default empty axis if none provided
+
+    providedYAxes.forEach((axisOpt, index) => {
+      const isFirst = index === 0;
+      // Default ID is 'default' for the first axis, or 'y1', 'y2' etc. unless specified
+      const defaultId = isFirst ? 'default' : `y${index}`;
+      const id = axisOpt.id || defaultId;
+      
+      if (isFirst) {
+        this.primaryYAxisId = id;
+      }
+
+      // Default position: left for first, right for others
+      const position = axisOpt.position || (isFirst ? 'left' : 'right');
+
+      const fullOptions: AxisOptions = { 
+        scale: "linear", 
+        auto: true, 
+        position,
+        ...axisOpt, 
+        id 
+      };
+
+      this.yAxisOptionsMap.set(id, fullOptions);
+      this.yScales.set(id, fullOptions.scale === "log" ? new LogScale() : new LinearScale());
+    });
 
     // Create DOM structure
     this.container.style.position = "relative";
@@ -165,12 +233,17 @@ class ChartImpl implements Chart {
 
     // Initialize subsystems
     this.renderer = new NativeWebGLRenderer(this.webglCanvas);
+    this.renderer.setDPR(this.dpr);
     this.overlay = new OverlayRenderer(this.overlayCtx, this.theme);
     this.interaction = new InteractionManager(
       this.container,
       {
-        onZoom: (b) => this.zoom({ x: [b.xMin, b.xMax], y: [b.yMin, b.yMax] }),
-        onPan: (dx, dy) => this.pan(dx, dy),
+        onZoom: (b, axisId) => this.zoom({ 
+            x: [b.xMin, b.xMax], 
+            y: [b.yMin, b.yMax],
+            axisId 
+        }),
+        onPan: (dx, dy, axisId) => this.pan(dx, dy, axisId),
         onBoxZoom: (rect) => this.handleBoxZoom(rect),
         onCursorMove: (x, y) => {
           this.cursorPosition = { x, y };
@@ -182,7 +255,8 @@ class ChartImpl implements Chart {
         },
       },
       () => this.getPlotArea(),
-      () => this.viewBounds
+      (axisId) => this.getInteractedBounds(axisId),
+      () => this.getAxesLayout()
     );
 
     // Setup resize observer
@@ -220,6 +294,12 @@ class ChartImpl implements Chart {
           this.requestRender();
           this.events.emit("autoScale", undefined);
         },
+        onToggleLegend: (visible: boolean) => {
+          this.showLegend = visible;
+          if (this.legend) {
+             this.legend.setVisible(visible);
+          }
+        }
       });
     }
 
@@ -292,27 +372,68 @@ class ChartImpl implements Chart {
 
   private createCanvas(type: "webgl" | "overlay"): HTMLCanvasElement {
     const c = document.createElement("canvas");
-    c.style.cssText =
-      type === "webgl"
-        ? `position:absolute;top:${MARGINS.top}px;left:${
-            MARGINS.left
-          }px;width:calc(100% - ${
-            MARGINS.left + MARGINS.right
-          }px);height:calc(100% - ${MARGINS.top + MARGINS.bottom}px)`
-        : `position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none`;
+    c.style.cssText = `position:absolute;top:0;left:0;width:100%;height:100%;${
+      type === "overlay" ? "pointer-events:none" : ""
+    }`;
     return c;
   }
 
   private getPlotArea() {
     const rect = this.container.getBoundingClientRect();
-    const width = Math.max(10, rect.width - MARGINS.left - MARGINS.right);
+    
+    // Count axes on each side to calculate dynamic margins
+    let leftCount = 0;
+    let rightCount = 0;
+    this.yAxisOptionsMap.forEach(opts => {
+      if (opts.position === 'right') rightCount++;
+      else leftCount++;
+    });
+
+    // Consistent 65px per axis including labels and titles
+    const leftMargin = Math.max(75, leftCount * 65);
+    const rightMargin = Math.max(15, rightCount * 65);
+
+    const width = Math.max(10, rect.width - leftMargin - rightMargin);
     const height = Math.max(10, rect.height - MARGINS.top - MARGINS.bottom);
+    
     return {
-      x: MARGINS.left,
+      x: leftMargin,
       y: MARGINS.top,
       width,
       height,
     };
+  }
+
+  private getAxesLayout(): AxisLayout[] {
+    const leftAxes: string[] = [];
+    const rightAxes: string[] = [];
+    this.yAxisOptionsMap.forEach((opts, id) => {
+      if (opts.position === 'right') rightAxes.push(id);
+      else leftAxes.push(id);
+    });
+
+    const layout: AxisLayout[] = [];
+    leftAxes.forEach((id, index) => {
+      layout.push({ id, position: 'left', offset: index * 65 });
+    });
+    rightAxes.forEach((id, index) => {
+      layout.push({ id, position: 'right', offset: index * 65 });
+    });
+    return layout;
+  }
+
+  private getInteractedBounds(axisId?: string): Bounds {
+    if (axisId) {
+      const scale = this.yScales.get(axisId);
+      if (scale) {
+        return {
+          ...this.viewBounds,
+          yMin: scale.domain[0],
+          yMax: scale.domain[1]
+        };
+      }
+    }
+    return this.viewBounds;
   }
 
   exportImage(type: "png" | "jpeg" = "png"): string {
@@ -330,9 +451,7 @@ class ChartImpl implements Chart {
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
     // 2. Draw WebGL plot area
-    const plotX = MARGINS.left * this.dpr;
-    const plotY = MARGINS.top * this.dpr;
-    ctx.drawImage(this.webglCanvas, plotX, plotY);
+    ctx.drawImage(this.webglCanvas, 0, 0); // WebGL is now full-size too
 
     // 3. Draw Overlay (Axes, Grid, Labels)
     ctx.drawImage(this.overlayCanvas, 0, 0);
@@ -384,7 +503,80 @@ class ChartImpl implements Chart {
   private updateSeriesBuffer(s: Series): void {
     const d = s.getData();
     if (!d || d.x.length === 0) return;
-    this.renderer.createBuffer(s.getId(), interleaveData(d.x, d.y));
+    
+    const seriesType = s.getType();
+    const seriesId = s.getId();
+    const lastAppend = s.getLastAppendCount();
+    const totalPoints = d.x.length;
+
+    // Try partial update for main buffer if it's not a step chart
+    // (Step charts are harder to partially update because of the extra segments)
+    if (lastAppend > 0 && lastAppend < totalPoints && seriesType !== 'step' && seriesType !== 'step+scatter') {
+       const newX = d.x.slice(totalPoints - lastAppend);
+       const newY = d.y.slice(totalPoints - lastAppend);
+       const interleaved = interleaveData(newX, newY);
+       
+       // 2 floats per point, 4 bytes per float
+       const offsetInBytes = (totalPoints - lastAppend) * 2 * 4;
+       
+       const success = this.renderer.updateBuffer(seriesId, interleaved, offsetInBytes);
+       if (success) {
+          s.resetLastAppendCount();
+          return;
+       }
+    }
+
+    // Fallback: Create main buffer (original points)
+    this.renderer.createBuffer(seriesId, interleaveData(d.x, d.y));
+    
+    // Create step buffer for step chart types
+    if (seriesType === 'step' || seriesType === 'step+scatter') {
+      const stepMode = s.getStyle().stepMode ?? 'after';
+      const stepData = interleaveStepData(d.x, d.y, stepMode);
+      this.renderer.createBuffer(`${seriesId}_step`, stepData);
+    }
+
+    s.resetLastAppendCount();
+  }
+
+  appendData(id: string, x: number[] | Float32Array, y: number[] | Float32Array): void {
+    const s = this.series.get(id);
+    if (!s) return;
+
+    const oldBounds = s.getBounds();
+    const oldMaxX = oldBounds ? oldBounds.xMax : -Infinity;
+
+    s.updateData({ x: x as any, y: y as any, append: true });
+    this.updateSeriesBuffer(s);
+
+    if (this.autoScroll) {
+      const newBounds = s.getBounds();
+      if (newBounds) {
+        const xRange = this.viewBounds.xMax - this.viewBounds.xMin;
+        // If we were near the end, follow the data
+        if (oldMaxX >= this.viewBounds.xMax - xRange * 0.05 || !oldBounds) {
+          this.viewBounds.xMax = newBounds.xMax;
+          this.viewBounds.xMin = this.viewBounds.xMax - xRange;
+        }
+      }
+    }
+
+    if (this.xAxisOptions.auto || this.yAxisOptions.auto) {
+      this.autoScale();
+    }
+    this.requestRender();
+  }
+
+  setAutoScroll(enabled: boolean): void {
+    this.autoScroll = enabled;
+  }
+
+  setMaxPoints(id: string, maxPoints: number): void {
+    const s = this.series.get(id);
+    if (s) {
+      (s as any).maxPoints = maxPoints; // Access private for now or add setter
+      this.updateSeriesBuffer(s);
+    }
   }
 
   getSeries(id: string): Series | undefined {
@@ -403,10 +595,41 @@ class ChartImpl implements Chart {
       this.viewBounds.xMin = options.x[0];
       this.viewBounds.xMax = options.x[1];
     }
+    
     if (options.y) {
-      this.viewBounds.yMin = options.y[0];
-      this.viewBounds.yMax = options.y[1];
+      if (options.axisId) {
+        // Zoom targeted axis only
+        const scale = this.yScales.get(options.axisId);
+        if (scale) {
+          scale.setDomain(options.y[0], options.y[1]);
+          // If it happens to be the primary axis, sync viewBounds
+          if (options.axisId === this.primaryYAxisId) {
+            this.viewBounds.yMin = options.y[0];
+            this.viewBounds.yMax = options.y[1];
+          }
+        }
+      } else {
+        // Global zoom: apply to all axes proportionally
+        const oldRange = this.viewBounds.yMax - this.viewBounds.yMin;
+        const newRange = options.y[1] - options.y[0];
+        const factor = oldRange > 0 ? newRange / oldRange : 1;
+        
+        // Calculate relative shift based on primary axis change
+        const offsetPct = oldRange > 0 ? (options.y[0] - this.viewBounds.yMin) / oldRange : 0;
+
+        this.yScales.forEach((scale, id) => {
+          if (id === this.primaryYAxisId) return; // Will sync with viewBounds later
+          const sRange = scale.domain[1] - scale.domain[0];
+          const sNewMin = scale.domain[0] + offsetPct * sRange;
+          const sNewMax = sNewMin + factor * sRange;
+          scale.setDomain(sNewMin, sNewMax);
+        });
+
+        this.viewBounds.yMin = options.y[0];
+        this.viewBounds.yMax = options.y[1];
+      }
     }
+    
     this.events.emit("zoom", {
       x: [this.viewBounds.xMin, this.viewBounds.xMax],
       y: [this.viewBounds.yMin, this.viewBounds.yMax],
@@ -414,16 +637,44 @@ class ChartImpl implements Chart {
     this.requestRender();
   }
 
-  pan(deltaX: number, deltaY: number): void {
+  pan(deltaX: number, deltaY: number, axisId?: string): void {
     const pa = this.getPlotArea();
     const dx =
       (deltaX / pa.width) * (this.viewBounds.xMax - this.viewBounds.xMin);
-    const dy =
-      (deltaY / pa.height) * (this.viewBounds.yMax - this.viewBounds.yMin);
+    
+    // Apply pan to X (always global)
     this.viewBounds.xMin -= dx;
     this.viewBounds.xMax -= dx;
-    this.viewBounds.yMin += dy;
-    this.viewBounds.yMax += dy;
+
+    if (axisId) {
+      // Pan targeted axis only
+      const scale = this.yScales.get(axisId);
+      if (scale) {
+        const range = scale.domain[1] - scale.domain[0];
+        const moveY = (deltaY / pa.height) * range;
+        scale.setDomain(scale.domain[0] + moveY, scale.domain[1] + moveY);
+        
+        // Sync primary viewBounds if applicable
+        if (axisId === this.primaryYAxisId) {
+          this.viewBounds.yMin = scale.domain[0];
+          this.viewBounds.yMax = scale.domain[1];
+        }
+      }
+    } else {
+      // Global pan: apply to all Y axes proportionally
+      this.yScales.forEach((scale, id) => {
+        const range = scale.domain[1] - scale.domain[0];
+        const moveY = (deltaY / pa.height) * range;
+        scale.setDomain(scale.domain[0] + moveY, scale.domain[1] + moveY);
+        
+        if (id === this.primaryYAxisId) {
+          this.viewBounds.yMin = scale.domain[0];
+          this.viewBounds.yMax = scale.domain[1];
+        }
+      });
+    }
+
+    const dy = (deltaY / pa.height) * (this.viewBounds.yMax - this.viewBounds.yMin);
     this.events.emit("pan", { deltaX: dx, deltaY: dy });
     this.requestRender();
   }
@@ -444,13 +695,20 @@ class ChartImpl implements Chart {
   public autoScale(): void {
     if (this.series.size === 0) return;
 
-    let xMin = Infinity,
-      xMax = -Infinity,
-      yMin = Infinity,
-      yMax = -Infinity;
+    let xMin = Infinity;
+    let xMax = -Infinity;
+    
+    // Track bounds per Y-axis
+    const yAxisBounds = new Map<string, { min: number, max: number }>();
+    this.yScales.forEach((_, id) => {
+      yAxisBounds.set(id, { min: Infinity, max: -Infinity });
+    });
+
     let hasValidData = false;
 
     this.series.forEach((s) => {
+      if (!s.isVisible()) return;
+
       const b = s.getBounds();
       if (
         b &&
@@ -459,10 +717,18 @@ class ChartImpl implements Chart {
         isFinite(b.yMin) &&
         isFinite(b.yMax)
       ) {
+        // Global X bounds
         xMin = Math.min(xMin, b.xMin);
         xMax = Math.max(xMax, b.xMax);
-        yMin = Math.min(yMin, b.yMin);
-        yMax = Math.max(yMax, b.yMax);
+        
+        // Axis-specific Y bounds
+        const axisId = s.getYAxisId() || this.primaryYAxisId;
+        const yBounds = yAxisBounds.get(axisId);
+        if (yBounds) {
+          yBounds.min = Math.min(yBounds.min, b.yMin);
+          yBounds.max = Math.max(yBounds.max, b.yMax);
+        }
+        
         hasValidData = true;
       }
     });
@@ -472,41 +738,43 @@ class ChartImpl implements Chart {
       return;
     }
 
-    // Add 5% padding
-    let xRange = xMax - xMin;
-    let yRange = yMax - yMin;
-
-    // Fallback for zero range (single point or identical points)
-    if (xRange <= 0 || !isFinite(xRange)) xRange = Math.abs(xMin) * 0.1 || 1;
-    if (yRange <= 0 || !isFinite(yRange)) yRange = Math.abs(yMin) * 0.1 || 1;
-
-    // Ensure we don't have extreme values that could break rendering
     const MAX_VALUE = 1e15;
     const MIN_VALUE = -1e15;
 
-    xMin = Math.max(MIN_VALUE, Math.min(MAX_VALUE, xMin));
-    xMax = Math.max(MIN_VALUE, Math.min(MAX_VALUE, xMax));
-    yMin = Math.max(MIN_VALUE, Math.min(MAX_VALUE, yMin));
-    yMax = Math.max(MIN_VALUE, Math.min(MAX_VALUE, yMax));
-
-    const xPad = Math.min(xRange * 0.05, 1e10);
-    const yPad = Math.min(yRange * 0.05, 1e10);
-
-    const newBounds = {
-      xMin: Math.max(MIN_VALUE, xMin - xPad),
-      xMax: Math.min(MAX_VALUE, xMax + xPad),
-      yMin: Math.max(MIN_VALUE, yMin - yPad),
-      yMax: Math.min(MAX_VALUE, yMax + yPad),
-    };
-
+    // Apply X bounds (global)
     if (this.xAxisOptions.auto) {
-      this.viewBounds.xMin = newBounds.xMin;
-      this.viewBounds.xMax = newBounds.xMax;
+       let xRange = xMax - xMin;
+       if (xRange <= 0 || !isFinite(xRange)) xRange = Math.abs(xMin) * 0.1 || 1;
+       const xPad = Math.min(xRange * 0.05, 1e10);
+       
+       this.viewBounds.xMin = Math.max(MIN_VALUE, xMin - xPad);
+       this.viewBounds.xMax = Math.min(MAX_VALUE, xMax + xPad);
     }
-    if (this.yAxisOptions.auto) {
-      this.viewBounds.yMin = newBounds.yMin;
-      this.viewBounds.yMax = newBounds.yMax;
-    }
+
+    // Apply Y bounds (per axis)
+    yAxisBounds.forEach((bounds, id) => {
+        if (bounds.min === Infinity) return; // No data for this axis
+        
+        const opts = this.yAxisOptionsMap.get(id);
+        const scale = this.yScales.get(id);
+        
+        if (opts && opts.auto && scale) {
+            let yRange = bounds.max - bounds.min;
+            if (yRange <= 0 || !isFinite(yRange)) yRange = Math.abs(bounds.min) * 0.1 || 1;
+            const yPad = Math.min(yRange * 0.05, 1e10);
+            
+            const newMin = Math.max(MIN_VALUE, bounds.min - yPad);
+            const newMax = Math.min(MAX_VALUE, bounds.max + yPad);
+            
+            scale.setDomain(newMin, newMax);
+            
+            // Sync primary axis to viewBounds for backward compatibility
+            if (id === this.primaryYAxisId) {
+                this.viewBounds.yMin = newMin;
+                this.viewBounds.yMax = newMax;
+            }
+        }
+    });
 
     this.requestRender();
   }
@@ -524,8 +792,128 @@ class ChartImpl implements Chart {
   }
 
   // ----------------------------------------
+  // Annotations
+  // ----------------------------------------
+
+  addAnnotation(annotation: Annotation): string {
+    const id = this.annotationManager.add(annotation);
+    this.requestRender();
+    return id;
+  }
+
+  removeAnnotation(id: string): boolean {
+    const result = this.annotationManager.remove(id);
+    if (result) this.requestRender();
+    return result;
+  }
+
+  updateAnnotation(id: string, updates: Partial<Annotation>): void {
+    this.annotationManager.update(id, updates);
+    this.requestRender();
+  }
+
+  getAnnotation(id: string): Annotation | undefined {
+    return this.annotationManager.get(id);
+  }
+
+  getAnnotations(): Annotation[] {
+    return this.annotationManager.getAll();
+  }
+
+  clearAnnotations(): void {
+    this.annotationManager.clear();
+    this.requestRender();
+  }
+
+  // ----------------------------------------
+  // Export Methods
+  // ----------------------------------------
+
+  exportCSV(options?: ExportOptions): string {
+    const {
+      seriesIds,
+      includeHeaders = true,
+      precision = 6,
+      delimiter = ','
+    } = options ?? {};
+
+    const seriesToExport = seriesIds
+      ? this.getAllSeries().filter(s => seriesIds.includes(s.getId()))
+      : this.getAllSeries();
+
+    if (seriesToExport.length === 0) return '';
+
+    const lines: string[] = [];
+
+    // Generate headers
+    if (includeHeaders) {
+      const headers: string[] = [];
+      seriesToExport.forEach(s => {
+        headers.push(`${s.getId()}_x`, `${s.getId()}_y`);
+      });
+      lines.push(headers.join(delimiter));
+    }
+
+    // Find max length
+    const maxLength = Math.max(...seriesToExport.map(s => s.getPointCount()));
+
+    // Generate data rows
+    for (let i = 0; i < maxLength; i++) {
+      const row: string[] = [];
+      seriesToExport.forEach(s => {
+        const data = s.getData();
+        if (data && i < data.x.length) {
+          row.push(data.x[i].toFixed(precision), data.y[i].toFixed(precision));
+        } else {
+          row.push('', '');
+        }
+      });
+      lines.push(row.join(delimiter));
+    }
+
+    return lines.join('\n');
+  }
+
+  exportJSON(options?: ExportOptions): string {
+    const { seriesIds, precision = 6 } = options ?? {};
+
+    const seriesToExport = seriesIds
+      ? this.getAllSeries().filter(s => seriesIds.includes(s.getId()))
+      : this.getAllSeries();
+
+    const result: Record<string, { 
+      id: string;
+      type: string;
+      style: object;
+      data: { x: number[]; y: number[] };
+      pointCount: number;
+    }> = {};
+
+    seriesToExport.forEach(s => {
+      const data = s.getData();
+      result[s.getId()] = {
+        id: s.getId(),
+        type: s.getType(),
+        style: s.getStyle(),
+        data: {
+          x: data ? Array.from(data.x).map(v => parseFloat(v.toFixed(precision))) : [],
+          y: data ? Array.from(data.y).map(v => parseFloat(v.toFixed(precision))) : [],
+        },
+        pointCount: s.getPointCount()
+      };
+    });
+
+    return JSON.stringify({
+      exportDate: new Date().toISOString(),
+      chartBounds: this.viewBounds,
+      series: result
+    }, null, 2);
+  }
+
+  // ----------------------------------------
   // Rendering
   // ----------------------------------------
+
 
   resize(): void {
     const rect = this.container.getBoundingClientRect();
@@ -551,8 +939,7 @@ class ChartImpl implements Chart {
     if (this.isDestroyed) return;
     const start = performance.now();
 
-    this.xScale.setDomain(this.viewBounds.xMin, this.viewBounds.xMax);
-    this.yScale.setDomain(this.viewBounds.yMin, this.viewBounds.yMax);
+    // Prepare data for rendering
 
     // WebGL render
     const seriesData: SeriesRenderData[] = [];
@@ -563,9 +950,16 @@ class ChartImpl implements Chart {
       return;
     }
 
-    // Update scales with current range
+    // Update all scales with current plot area range and domain
     this.xScale.setRange(plotArea.x, plotArea.x + plotArea.width);
-    this.yScale.setRange(plotArea.y + plotArea.height, plotArea.y); // Y is inverted in pixels
+    this.xScale.setDomain(this.viewBounds.xMin, this.viewBounds.xMax);
+
+    this.yScales.forEach((scale, id) => {
+      scale.setRange(plotArea.y + plotArea.height, plotArea.y);
+      if (id === this.primaryYAxisId) {
+        scale.setDomain(this.viewBounds.yMin, this.viewBounds.yMax);
+      }
+    });
 
     this.series.forEach((s) => {
       if (s.needsBufferUpdate) {
@@ -574,15 +968,50 @@ class ChartImpl implements Chart {
       }
 
       const buf = this.renderer.getBuffer(s.getId());
-      if (buf)
-        seriesData.push({
+      if (buf) {
+        const seriesType = s.getType();
+        
+        // Determine Y-bounds for this series
+        const axisId = s.getYAxisId() || this.primaryYAxisId;
+        const scale = this.yScales.get(axisId);
+        let yBounds: { min: number; max: number } | undefined;
+        
+        // If it's the primary axis, we can leave it undefined to use global bounds,
+        // OR we can be explicit. explicit is better given we might have different ranges.
+        if (scale) {
+           yBounds = { min: scale.domain[0], max: scale.domain[1] };
+        }
+
+        const renderData: SeriesRenderData = {
           id: s.getId(),
           buffer: buf,
           count: s.getPointCount(),
           style: s.getStyle(),
           visible: s.isVisible(),
-          type: s.getType(),
-        });
+          type: seriesType,
+          yBounds,
+        };
+        
+        // Add step buffer for step types
+        if (seriesType === 'step' || seriesType === 'step+scatter') {
+          const stepBuf = this.renderer.getBuffer(`${s.getId()}_step`);
+          if (stepBuf) {
+            renderData.stepBuffer = stepBuf;
+            // Calculate step count based on mode
+            const stepMode = s.getStyle().stepMode ?? 'after';
+            const pointCount = s.getPointCount();
+            if (stepMode === 'center') {
+              // Center mode: each segment has 3 vertices, plus first point = 1 + (n-1)*3
+              renderData.stepCount = 1 + (pointCount - 1) * 3;
+            } else {
+              // Before/After mode: each segment has 2 vertices, plus first point
+              renderData.stepCount = pointCount * 2 - 1;
+            }
+          }
+        }
+        
+        seriesData.push(renderData);
+      }
     });
 
     if (seriesData.length === 0 && this.series.size > 0) {
@@ -598,6 +1027,7 @@ class ChartImpl implements Chart {
     this.renderer.render(seriesData, {
       bounds: this.viewBounds,
       backgroundColor: this.backgroundColor,
+      plotArea: plotArea,
     });
 
     // Overlay render
@@ -612,12 +1042,58 @@ class ChartImpl implements Chart {
     this.overlay.clear(rect.width, rect.height);
     this.overlay.drawGrid(plotArea, this.xScale, this.yScale);
     this.overlay.drawXAxis(plotArea, this.xScale, this.xAxisOptions.label);
-    this.overlay.drawYAxis(plotArea, this.yScale, this.yAxisOptions.label);
+
+    // Group axes by position
+    const leftAxes: string[] = [];
+    const rightAxes: string[] = [];
+    
+    this.yAxisOptionsMap.forEach((opts, id) => {
+        if(opts.position === 'right') rightAxes.push(id);
+        else leftAxes.push(id);
+    });
+
+    // Draw Left Axes (stacked outwards)
+    leftAxes.forEach((id, index) => {
+        const scale = this.yScales.get(id);
+        const opts = this.yAxisOptionsMap.get(id);
+        if(scale && opts) {
+             const offset = index * 65; 
+             this.overlay.drawYAxis(plotArea, scale, opts.label, 'left', offset);
+        }
+    });
+
+    // Draw Right Axes (stacked outwards)
+    rightAxes.forEach((id, index) => {
+        const scale = this.yScales.get(id);
+        const opts = this.yAxisOptionsMap.get(id);
+        if(scale && opts) {
+             const offset = index * 65; 
+             this.overlay.drawYAxis(plotArea, scale, opts.label, 'right', offset);
+        }
+    });
+
     this.overlay.drawPlotBorder(plotArea);
+
+    // Draw Error Bars for all series with error data
+    this.series.forEach((s) => {
+      if (s.isVisible() && s.hasErrorData()) {
+        const axisId = s.getYAxisId() || this.primaryYAxisId;
+        const scale = this.yScales.get(axisId);
+        // Fallback to primary scale if specific scale not found (shouldn't happen)
+        const yScale = scale || this.yScale; 
+        
+        this.overlay.drawErrorBars(plotArea, s, this.xScale, yScale);
+      }
+    });
 
     // Draw Selection Box
     if (this.selectionRect) {
       this.overlay.drawSelectionRect(this.selectionRect);
+    }
+
+    // Draw Annotations
+    if (this.annotationManager.count > 0) {
+      this.annotationManager.render(this.overlayCtx, plotArea, this.viewBounds);
     }
 
     // Legend is now handled by ChartLegend component (HTML)
