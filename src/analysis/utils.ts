@@ -471,3 +471,43 @@ export function downsampleLTTB(
 
   return { x: sampledX, y: sampledY };
 }
+
+/**
+ * Subtract a linear baseline from data
+ * 
+ * @param x - X data
+ * @param y - Y data
+ * @param x1 - Start of baseline segment
+ * @param x2 - End of baseline segment
+ */
+export function subtractBaseline(
+  x: Float32Array | number[],
+  y: Float32Array | number[],
+  x1: number,
+  x2: number
+): Float32Array {
+  const n = x.length;
+  const result = new Float32Array(n);
+
+  // Find points near x1 and x2 to determine baseline
+  let i1 = 0, i2 = n - 1;
+  let minDist1 = Infinity, minDist2 = Infinity;
+
+  for (let i = 0; i < n; i++) {
+    const d1 = Math.abs(x[i] - x1);
+    const d2 = Math.abs(x[i] - x2);
+    if (d1 < minDist1) { minDist1 = d1; i1 = i; }
+    if (d2 < minDist2) { minDist2 = d2; i2 = i; }
+  }
+
+  const y1 = y[i1];
+  const y2 = y[i2];
+  const slope = (y2 - y1) / (x[i2] - x[i1]);
+  const intercept = y1 - slope * x[i1];
+
+  for (let i = 0; i < n; i++) {
+    result[i] = y[i] - (slope * x[i] + intercept);
+  }
+
+  return result;
+}

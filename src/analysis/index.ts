@@ -17,7 +17,20 @@ export {
   calculateStats,
   movingAverage,
   downsampleLTTB,
+  subtractBaseline,
 } from './utils';
+
+export {
+  solveLinearSystem,
+  calculateR2,
+  integrate,
+  derivative,
+  cumulativeIntegral,
+} from './math';
+
+export {
+  fitData,
+} from './fitting';
 
 export type { 
   CycleInfo, 
@@ -26,3 +39,9 @@ export type {
   ValidationResult,
   DataStats,
 } from './utils';
+
+export type {
+  FitType,
+  FitOptions,
+  FitResult,
+} from './fitting';
