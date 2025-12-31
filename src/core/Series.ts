@@ -11,6 +11,9 @@ import type {
   SeriesUpdateData,
   Bounds,
   SeriesType,
+  HeatmapOptions,
+  HeatmapData,
+  HeatmapStyle,
 } from "../types";
 
 const DEFAULT_STYLE: SeriesStyle = {
@@ -38,6 +41,10 @@ export class Series {
   private cycle?: number;
   private maxPoints?: number;
 
+  // Heatmap specific
+  private heatmapData?: HeatmapData;
+  private heatmapStyle?: HeatmapStyle;
+
   // Track appends for optimized GPU updates
   private lastAppendCount = 0;
 
@@ -52,24 +59,36 @@ export class Series {
   private smoothedData: SeriesData | null = null;
   private smoothingNeedsUpdate = true;
 
-  constructor(options: SeriesOptions) {
+  constructor(options: SeriesOptions | HeatmapOptions) {
     if (!options) throw new Error("[Series] Options are required");
     this.id = options.id;
     this.type = options.type;
     this.yAxisId = options.yAxisId;
 
-    this.data = {
-      x: ensureTypedArray(options.data?.x),
-      y: ensureTypedArray(options.data?.y),
-      // Error bar data
-      yError: options.data?.yError ? ensureTypedArray(options.data.yError) : undefined,
-      yErrorPlus: options.data?.yErrorPlus ? ensureTypedArray(options.data.yErrorPlus) : undefined,
-      yErrorMinus: options.data?.yErrorMinus ? ensureTypedArray(options.data.yErrorMinus) : undefined,
-      xError: options.data?.xError ? ensureTypedArray(options.data.xError) : undefined,
-      xErrorPlus: options.data?.xErrorPlus ? ensureTypedArray(options.data.xErrorPlus) : undefined,
-      xErrorMinus: options.data?.xErrorMinus ? ensureTypedArray(options.data.xErrorMinus) : undefined,
-      y2: options.data?.y2 ? ensureTypedArray(options.data.y2) : undefined,
-    };
+    if (this.type === 'heatmap') {
+      const hOpts = options as HeatmapOptions;
+      this.data = { x: new Float32Array(0), y: new Float32Array(0) }; // Dummy for heatmap
+      this.heatmapData = {
+        xValues: ensureTypedArray(hOpts.data.xValues),
+        yValues: ensureTypedArray(hOpts.data.yValues),
+        zValues: ensureTypedArray(hOpts.data.zValues),
+      };
+      this.heatmapStyle = hOpts.style;
+    } else {
+      const sOpts = options as SeriesOptions;
+      this.data = {
+        x: ensureTypedArray(sOpts.data?.x),
+        y: ensureTypedArray(sOpts.data?.y),
+        // Error bar data
+        yError: sOpts.data?.yError ? ensureTypedArray(sOpts.data.yError) : undefined,
+        yErrorPlus: sOpts.data?.yErrorPlus ? ensureTypedArray(sOpts.data.yErrorPlus) : undefined,
+        yErrorMinus: sOpts.data?.yErrorMinus ? ensureTypedArray(sOpts.data.yErrorMinus) : undefined,
+        xError: sOpts.data?.xError ? ensureTypedArray(sOpts.data.xError) : undefined,
+        xErrorPlus: sOpts.data?.xErrorPlus ? ensureTypedArray(sOpts.data.xErrorPlus) : undefined,
+        xErrorMinus: sOpts.data?.xErrorMinus ? ensureTypedArray(sOpts.data.xErrorMinus) : undefined,
+        y2: sOpts.data?.y2 ? ensureTypedArray(sOpts.data.y2) : undefined,
+      };
+    }
 
     // Support both style object and top-level style properties for convenience
     this.style = {
@@ -86,11 +105,12 @@ export class Series {
       this.style.symbol = (options as any).symbol;
 
     this.visible = options.visible ?? true;
-    this.cycle = options.cycle;
-    this.maxPoints = options.maxPoints;
+    this.cycle = (options as any).cycle;
+    this.maxPoints = (options as any).maxPoints;
+
 
     // Validate data
-    if (this.data.x.length !== this.data.y.length) {
+    if (this.type !== 'heatmap' && this.data.x.length !== this.data.y.length) {
       console.warn(
         `[Series "${this.id}"] X and Y arrays have different lengths:`,
         this.data.x.length,
@@ -170,7 +190,18 @@ export class Series {
     return this.cycle;
   }
 
+  getHeatmapData(): HeatmapData | undefined {
+    return this.heatmapData;
+  }
+
+  getHeatmapStyle(): HeatmapStyle | undefined {
+    return this.heatmapStyle;
+  }
+
   getPointCount(): number {
+    if (this.type === 'heatmap' && this.heatmapData) {
+      return this.heatmapData.xValues.length * this.heatmapData.yValues.length;
+    }
     return this.data.x.length;
   }
 
@@ -260,7 +291,24 @@ export class Series {
   }
 
   private calculateBounds(): Bounds {
+    if (this.type === 'heatmap' && this.heatmapData) {
+      const { xValues, yValues } = this.heatmapData;
+      let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+      for (let i = 0; i < xValues.length; i++) {
+        const v = xValues[i];
+        if (v < xMin) xMin = v;
+        if (v > xMax) xMax = v;
+      }
+      for (let i = 0; i < yValues.length; i++) {
+        const v = yValues[i];
+        if (v < yMin) yMin = v;
+        if (v > yMax) yMax = v;
+      }
+      return { xMin, xMax, yMin, yMax };
+    }
+
     const { x, y } = this.data;
+    if (x.length === 0) return { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
 
     let xMin = Infinity;
     let xMax = -Infinity;
@@ -281,8 +329,10 @@ export class Series {
       if (yVal > yMax) yMax = yVal;
     }
 
-    const bounds = { xMin, xMax, yMin, yMax };
-    return bounds;
+    // Default for empty/invalid data
+    if (xMin === Infinity) return { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
+
+    return { xMin, xMax, yMin, yMax };
   }
 
   // ----------------------------------------
