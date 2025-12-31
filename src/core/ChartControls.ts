@@ -17,6 +17,7 @@ export interface ChartControlsCallbacks {
   onTogglePan: (active: boolean) => void;
   onExport: () => void;
   onAutoScale: () => void;
+  onToggleLegend: (visible: boolean) => void;
 }
 
 // ============================================
@@ -32,6 +33,7 @@ const ICONS = {
   SMOOTH: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c.5 0 .9-.3 1.2-.7l1.6-2.6c.3-.4.7-.7 1.2-.7h2c.5 0 .9.3 1.2.7l1.6 2.6c.3.4.7.7 1.2.7h2c.5 0 .9-.3 1.2-.7l1.6-2.6c.3-.4.7-.7 1.2-.7h2"></path></svg>`,
   AUTOSCALE: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`,
   EXPORT: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`,
+  LEGEND: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"></path></svg>`
 };
 
 export class ChartControls {
@@ -42,6 +44,7 @@ export class ChartControls {
 
   private isSmoothing = false;
   private isPanMode = true;
+  private isLegendVisible = true;
   private currentType: "line" | "scatter" | "line+scatter" = "line";
 
   constructor(
@@ -191,6 +194,25 @@ export class ChartControls {
       "export"
     );
 
+    // Separator
+    const sep3 = document.createElement("div");
+    sep3.style.cssText = `width: 1px; height: 20px; background: ${
+      this.isDarkTheme() ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)"
+    }; margin: 0 6px;`;
+    this.toolbar.appendChild(sep3);
+
+    // Toggle Legend
+    this.createButton(
+      ICONS.LEGEND,
+      "Toggle Legend",
+      () => {
+        this.isLegendVisible = !this.isLegendVisible;
+        this.updateButtonStates();
+        this.callbacks.onToggleLegend(this.isLegendVisible);
+      },
+      "legend"
+    );
+
     this.updateButtonStates();
   }
 
@@ -279,6 +301,7 @@ export class ChartControls {
 
     const activeColor = "#38bdf8"; // Brighter blue
     const smoothActiveColor = "#fb7185"; // Brighter pink
+    const legendActiveColor = "#4ade80"; // Brighter green
     const normalColor = isDark ? "#f1f5f9" : "#334155"; // High contrast
 
     buttons.forEach((btn: HTMLButtonElement) => {
@@ -301,6 +324,14 @@ export class ChartControls {
             ? "rgba(251, 113, 133, 0.15)"
             : "rgba(251, 113, 133, 0.1)";
         }
+      } else if (id === "legend") {
+        btn.style.color = this.isLegendVisible ? legendActiveColor : normalColor;
+        btn.style.opacity = isHover || this.isLegendVisible ? "1" : "0.8";
+        if (this.isLegendVisible) {
+          btn.style.background = isDark
+            ? "rgba(74, 222, 128, 0.15)"
+            : "rgba(74, 222, 128, 0.1)";
+        }
       } else if (id === "type") {
         btn.innerHTML =
           this.currentType === "line"
@@ -321,7 +352,8 @@ export class ChartControls {
         !isHover &&
         !(
           (id === "pan" && this.isPanMode) ||
-          (id === "smooth" && this.isSmoothing)
+          (id === "smooth" && this.isSmoothing) ||
+          (id === "legend" && this.isLegendVisible)
         )
       ) {
         btn.style.background = "transparent";
