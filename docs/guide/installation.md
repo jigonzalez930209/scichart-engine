@@ -4,13 +4,13 @@
 
 ```bash
 # npm
-npm install scichart-engine
+npm install @jigonzalez930209/scichart-engine
 
 # pnpm
-pnpm add scichart-engine
+pnpm add @jigonzalez930209/scichart-engine
 
 # yarn
-yarn add scichart-engine
+yarn add @jigonzalez930209/scichart-engine
 ```
 
 ## Peer Dependencies
@@ -27,22 +27,22 @@ npm install react react-dom
 
 ```typescript
 // Core API
-import { createChart } from 'scichart-engine'
+import { createChart } from '@jigonzalez930209/scichart-engine'
 
 // React components
-import { SciChart, useSciChart } from 'scichart-engine/react'
+import { SciChart, useSciChart } from '@jigonzalez930209/scichart-engine/react'
 
 // Analysis utilities
-import { detectPeaks, detectCycles } from 'scichart-engine'
+import { detectPeaks, detectCycles } from '@jigonzalez930209/scichart-engine'
 
 // Themes
-import { DARK_THEME, MIDNIGHT_THEME } from 'scichart-engine'
+import { DARK_THEME, MIDNIGHT_THEME } from '@jigonzalez930209/scichart-engine'
 ```
 
 ### CommonJS
 
 ```javascript
-const { createChart } = require('scichart-engine')
+const { createChart } = require('@jigonzalez930209/scichart-engine')
 ```
 
 ## CDN Usage
@@ -51,7 +51,7 @@ For quick prototyping, you can use a CDN:
 
 ```html
 <script type="module">
-  import { createChart } from 'https://esm.sh/scichart-engine'
+  import { createChart } from 'https://esm.sh/@jigonzalez930209/scichart-engine'
   
   const chart = createChart({
     container: document.getElementById('chart'),
