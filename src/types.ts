@@ -30,6 +30,10 @@ export type Range = [number, number];
 export type ScaleType = "linear" | "log";
 
 export interface AxisOptions {
+  /** Unique ID for the axis (defaults to 'default') */
+  id?: string;
+  /** Axis position */
+  position?: "left" | "right" | "top" | "bottom";
   /** Scale type */
   scale?: ScaleType;
   /** Axis label (e.g., 'E / V') */
@@ -50,13 +54,49 @@ export interface AxisOptions {
 // Series Types
 // ============================================
 
-export type SeriesType = "line" | "scatter" | "line+scatter";
+export type SeriesType = "line" | "scatter" | "line+scatter" | "step" | "step+scatter";
+
+/** Step mode defines where the step occurs */
+export type StepMode = "before" | "after" | "center";
+
+/** Error bar direction */
+export type ErrorBarDirection = "both" | "positive" | "negative";
 
 export interface SeriesData {
   /** X values (potential, time, etc.) */
   x: Float32Array | Float64Array;
   /** Y values (current, charge, etc.) */
   y: Float32Array | Float64Array;
+  /** Symmetric Y error (±error) */
+  yError?: Float32Array | Float64Array;
+  /** Asymmetric Y error - positive direction (upward) */
+  yErrorPlus?: Float32Array | Float64Array;
+  /** Asymmetric Y error - negative direction (downward) */
+  yErrorMinus?: Float32Array | Float64Array;
+  /** Symmetric X error (±error) - for horizontal error bars */
+  xError?: Float32Array | Float64Array;
+  /** Asymmetric X error - positive direction (rightward) */
+  xErrorPlus?: Float32Array | Float64Array;
+  /** Asymmetric X error - negative direction (leftward) */
+  xErrorMinus?: Float32Array | Float64Array;
+}
+
+/** Error bar styling options */
+export interface ErrorBarStyle {
+  /** Show error bars (default: true if error data present) */
+  visible?: boolean;
+  /** Error bar color (default: same as series) */
+  color?: string;
+  /** Error bar line width (default: 1) */
+  width?: number;
+  /** Cap width in pixels (default: 6) */
+  capWidth?: number;
+  /** Show caps at the end of error bars (default: true) */
+  showCaps?: boolean;
+  /** Opacity (default: 0.7) */
+  opacity?: number;
+  /** Direction: show both, positive only, or negative only */
+  direction?: ErrorBarDirection;
 }
 
 export interface SeriesStyle {
@@ -70,13 +110,32 @@ export interface SeriesStyle {
   pointSize?: number;
   /** Smoothing factor (0 = none, 1 = full) */
   smoothing?: number;
+  /** Step mode: where the step transition occurs (default: 'after') */
+  stepMode?: StepMode;
+  /** Error bar styling */
+  errorBars?: ErrorBarStyle;
+  /** Scatter symbol shape (default: 'circle') */
+  symbol?: ScatterSymbol;
 }
+
+/** Available scatter symbol shapes */
+export type ScatterSymbol = 
+  | 'circle'      // Default filled circle
+  | 'square'      // Filled square (diamond rotated 45°)
+  | 'diamond'     // Diamond shape
+  | 'triangle'    // Triangle pointing up
+  | 'triangleDown'// Triangle pointing down
+  | 'cross'       // + shape
+  | 'x'           // X shape
+  | 'star';       // 5-pointed star
 
 export interface SeriesOptions {
   /** Unique identifier */
   id: string;
   /** Series type */
   type: SeriesType;
+  /** ID of the Y Axis this series belongs to */
+  yAxisId?: string;
   /** Data arrays */
   data: SeriesData;
   /** Visual style */
@@ -85,6 +144,8 @@ export interface SeriesOptions {
   visible?: boolean;
   /** Cycle number (for CV) */
   cycle?: number;
+  /** Maximum number of points to keep (rolling window) */
+  maxPoints?: number;
 }
 
 export interface SeriesUpdateData {
@@ -105,8 +166,8 @@ export interface ChartOptions {
   container: HTMLDivElement;
   /** X-axis configuration */
   xAxis?: AxisOptions;
-  /** Y-axis configuration */
-  yAxis?: AxisOptions;
+  /** Y-axis configuration (single or array) */
+  yAxis?: AxisOptions | AxisOptions[];
   /** Background color (overrides theme) */
   background?: string;
   /** Device pixel ratio (default: window.devicePixelRatio) */
@@ -119,6 +180,8 @@ export interface ChartOptions {
   legendPosition?: { x: number; y: number };
   /** Show in-chart controls (default: false) */
   showControls?: boolean;
+  /** Automatically follow new data (default: false) */
+  autoScroll?: boolean;
 }
 
 // ============================================
@@ -130,6 +193,8 @@ export interface ZoomOptions {
   x?: Range;
   /** Y-axis range [min, max] */
   y?: Range;
+  /** ID of the specific Y axis to zoom (if applicable) */
+  axisId?: string;
   /** Animate the transition */
   animate?: boolean;
 }

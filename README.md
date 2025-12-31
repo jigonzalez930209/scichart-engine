@@ -9,6 +9,7 @@ A high-performance, WebGL-powered scientific charting engine built for precision
 
 -   **🚀 High Performance**: Render millions of data points with ease using a specialized raw WebGL renderer.
 -   **📊 Scientific Precision**: Tailored for electrochemical (CV, DPV, etc.) and scientific data.
+-   **↕️ Multiple Y-Axes**: Plot multiple data series with independent scales and units on a single chart.
 -   **🖱️ Deep Interactivity**: Smooth panning, wheel zoom, and precise box-selection zoom.
 -   **⚛️ React Ready**: Native React hooks and components included.
 -   **📈 Advanced Analysis**: Built-in cycle detection, peak detection, and real-time smoothing.
@@ -67,11 +68,11 @@ chart.addSeries({
 
 ## 📖 Documentation
 
-Visit [scichart-engine.js.org](https://scichart-engine.js.org) for:
--   [Getting Started Guide](https://scichart-engine.js.org/guide/)
--   [Core Concepts](https://scichart-engine.js.org/guide/concepts)
--   [API Reference](https://scichart-engine.js.org/api/chart)
--   [Interactive Examples](https://github.com/jigonzalez930209/scichart-engine/tree/main/examples)
+Visit [SciChart Engine Docs](https://jigonzalez930209.github.io/scichart-engine/) for:
+-   [Getting Started Guide](https://jigonzalez930209.github.io/scichart-engine/guide/)
+-   [Core Concepts](https://jigonzalez930209.github.io/scichart-engine/guide/concepts)
+-   [API Reference](https://jigonzalez930209.github.io/scichart-engine/api/chart)
+-   [Interactive Examples](https://jigonzalez930209.github.io/scichart-engine/examples/)
 
 ## 📄 License
 

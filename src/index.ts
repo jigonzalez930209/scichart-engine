@@ -19,7 +19,22 @@
 export { createChart } from './core/Chart';
 export { Series } from './core/Series';
 export { EventEmitter } from './core/EventEmitter';
-export type { Chart, ChartOptions } from './core/Chart';
+export type { Chart, ChartOptions, ExportOptions } from './core/Chart';
+
+// ============================================
+// Annotations
+// ============================================
+export { AnnotationManager } from './core/annotations';
+export type {
+  Annotation,
+  AnnotationType,
+  HorizontalLineAnnotation,
+  VerticalLineAnnotation,
+  RectangleAnnotation,
+  BandAnnotation,
+  TextAnnotation,
+  ArrowAnnotation,
+} from './core/annotations';
 
 // ============================================
 // Types
@@ -38,6 +53,10 @@ export type {
   Range,
   ScaleType,
   SeriesType,
+  StepMode,
+  ErrorBarStyle,
+  ErrorBarDirection,
+  ScatterSymbol,
 } from './types';
 
 // ============================================
