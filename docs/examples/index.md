@@ -68,6 +68,26 @@ Baseline correction and area integration for scientific signals.
 
 [View full example →](/examples/analysis)
 
+---
+
+### Bar Charts
+
+Categorical and discrete data visualization with automatic layout.
+
+<ChartDemo type="bar" height="300px" />
+
+[View full example →](/examples/bar-charts)
+
+---
+
+### Heatmaps
+
+High-performance 2D intensity maps with customizable color scales.
+
+<ChartDemo type="heatmap" height="300px" />
+
+[View full example →](/examples/heatmap)
+
 ## Quick Links
 
 | Example | Description | Key Feature |
@@ -78,6 +98,8 @@ Baseline correction and area integration for scientific signals.
 | [React](/examples/react) | React integration | Components & hooks |
 | [Curve Fitting](/examples/curve-fitting) | Regression analysis | Trend lines & labels |
 | [Peak Analysis](/examples/analysis) | Integration/Baseline | Area calculation |
+| [Bar Charts](/examples/bar-charts) | Categorical data | Automatic width |
+| [Heatmaps](/examples/heatmap) | 2D intensity maps | Color scales |
 
 ## Code Snippets
 

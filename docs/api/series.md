@@ -7,7 +7,9 @@ Series represent data visualizations on the chart. Each series has an ID, type, 
 Add a new series to the chart.
 
 ```typescript
-chart.addSeries(options: SeriesOptions): void
+chart.addSeries(options: SeriesOptions | HeatmapOptions): void
+chart.addBar(options: Omit<SeriesOptions, 'type'>): void
+chart.addHeatmap(options: HeatmapOptions): void
 ```
 
 ### SeriesOptions
@@ -15,7 +17,7 @@ chart.addSeries(options: SeriesOptions): void
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `id` | `string` | **required** | Unique identifier |
-| `type` | `'line' \| 'scatter' \| 'both'` | `'line'` | Visualization type |
+| `type` | `'line' \| 'scatter' \| 'both' \| 'bar' \| 'heatmap'` | `'line'` | Visualization type |
 | `data` | `SeriesData` | **required** | X and Y data arrays |
 | `style` | `SeriesStyle` | `{}` | Visual styling |
 | `visible` | `boolean` | `true` | Initial visibility |
