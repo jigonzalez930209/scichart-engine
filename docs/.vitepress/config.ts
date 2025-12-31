@@ -12,7 +12,7 @@ export default defineConfig({
   ignoreDeadLinks: true,
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/scichart-engine/assets/logo.svg' }],
-    ['link', { rel: 'icon', type: 'image/png', href: '/scichart-engine/assets/favicon.png' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/scichart-engine/assets/favicon.svg' }],
     ['meta', { name: 'theme-color', content: '#00f2ff' }],
   ],
   vite: {
