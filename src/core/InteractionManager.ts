@@ -13,9 +13,15 @@ import type { Bounds } from "../types";
 // Types
 // ============================================
 
+export interface AxisLayout {
+  id: string;
+  position: 'left' | 'right';
+  offset: number;
+}
+
 export interface InteractionCallbacks {
-  onZoom: (bounds: Bounds) => void;
-  onPan: (deltaX: number, deltaY: number) => void;
+  onZoom: (bounds: Bounds, axisId?: string) => void;
+  onPan: (deltaX: number, deltaY: number, axisId?: string) => void;
   onBoxZoom: (
     rect: { x: number; y: number; width: number; height: number } | null
   ) => void;
@@ -28,7 +34,11 @@ export interface PlotAreaGetter {
 }
 
 export interface BoundsGetter {
-  (): Bounds;
+  (axisId?: string): Bounds;
+}
+
+export interface AxisLayoutGetter {
+  (): AxisLayout[];
 }
 
 // ============================================
@@ -40,8 +50,10 @@ export class InteractionManager {
   private callbacks: InteractionCallbacks;
   private getPlotArea: PlotAreaGetter;
   private getBounds: BoundsGetter;
+  private getAxesLayout: AxisLayoutGetter;
 
   private isDragging = false;
+  private panningAxisId?: string;
   private isBoxSelecting = false;
   private selectionStart = { x: 0, y: 0 };
   private lastMousePos = { x: 0, y: 0 };
@@ -61,12 +73,14 @@ export class InteractionManager {
     container: HTMLElement,
     callbacks: InteractionCallbacks,
     getPlotArea: PlotAreaGetter,
-    getBounds: BoundsGetter
+    getBounds: BoundsGetter,
+    getAxesLayout: AxisLayoutGetter
   ) {
     this.container = container;
     this.callbacks = callbacks;
     this.getPlotArea = getPlotArea;
     this.getBounds = getBounds;
+    this.getAxesLayout = getAxesLayout;
 
     // Bind handlers
     this.boundWheel = this.handleWheel.bind(this);
@@ -122,41 +136,58 @@ export class InteractionManager {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const bounds = this.getBounds();
-
     // Determine zoom targets
+    const axes = this.getAxesLayout();
     let zoomX = false;
     let zoomY = false;
+    let targetAxisId: string | undefined = undefined;
 
-    // Y Axis area (left)
-    if (
-      mouseX < plotArea.x &&
-      mouseY >= plotArea.y &&
-      mouseY <= plotArea.y + plotArea.height
-    ) {
-      zoomY = true;
-    }
-    // X Axis area (bottom)
-    else if (
-      mouseY > plotArea.y + plotArea.height &&
-      mouseX >= plotArea.x &&
-      mouseX <= plotArea.x + plotArea.width
-    ) {
-      zoomX = true;
-    }
-    // Plot area (both)
-    else if (
-      mouseX >= plotArea.x &&
-      mouseX <= plotArea.x + plotArea.width &&
-      mouseY >= plotArea.y &&
-      mouseY <= plotArea.y + plotArea.height
-    ) {
-      zoomX = true;
-      zoomY = true;
-    } else {
-      return; // Outside interactive areas
+    // Hit test Y axes
+    for (const axis of axes) {
+      const axisX = axis.position === 'left' 
+        ? plotArea.x - axis.offset 
+        : plotArea.x + plotArea.width + axis.offset;
+      
+      const hitWidth = 65; // Matches axis spacing
+      const hitX = axis.position === 'left' ? axisX - hitWidth : axisX;
+
+      if (
+        mouseX >= hitX &&
+        mouseX <= hitX + hitWidth &&
+        mouseY >= plotArea.y &&
+        mouseY <= plotArea.y + plotArea.height
+      ) {
+        targetAxisId = axis.id;
+        zoomY = true;
+        zoomX = false;
+        break;
+      }
     }
 
+    if (!targetAxisId) {
+      // X Axis area (bottom)
+      if (
+        mouseY > plotArea.y + plotArea.height &&
+        mouseX >= plotArea.x &&
+        mouseX <= plotArea.x + plotArea.width
+      ) {
+        zoomX = true;
+      }
+      // Plot area (both)
+      else if (
+        mouseX >= plotArea.x &&
+        mouseX <= plotArea.x + plotArea.width &&
+        mouseY >= plotArea.y &&
+        mouseY <= plotArea.y + plotArea.height
+      ) {
+        zoomX = true;
+        zoomY = true;
+      } else {
+        return; // Outside interactive areas
+      }
+    }
+
+    const bounds = this.getBounds(targetAxisId);
     const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
 
     // Calculate zoom center in data coordinates
@@ -166,7 +197,6 @@ export class InteractionManager {
     const dataX = bounds.xMin + normalizedX * (bounds.xMax - bounds.xMin);
     const dataY = bounds.yMin + normalizedY * (bounds.yMax - bounds.yMin);
 
-    // Safeguard: Prevent zooming out too far or in too deep
     // Limits
     const MIN_RANGE = 1e-12;
     const MAX_RANGE = 1e15;
@@ -203,7 +233,7 @@ export class InteractionManager {
       yMax: nextYMax,
     };
 
-    this.callbacks.onZoom(newBounds);
+    this.callbacks.onZoom(newBounds, targetAxisId);
   }
 
   private handleMouseDown(e: MouseEvent): void {
@@ -214,6 +244,30 @@ export class InteractionManager {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
+    // Check if mouse is in axis area for dragging
+    const axes = this.getAxesLayout();
+    for (const axis of axes) {
+      const axisX = axis.position === 'left' 
+        ? plotArea.x - axis.offset 
+        : plotArea.x + plotArea.width + axis.offset;
+      
+      const hitWidth = 65;
+      const hitX = axis.position === 'left' ? axisX - hitWidth : axisX;
+
+      if (
+        mouseX >= hitX &&
+        mouseX <= hitX + hitWidth &&
+        mouseY >= plotArea.y &&
+        mouseY <= plotArea.y + plotArea.height
+      ) {
+        this.isDragging = true;
+        this.panningAxisId = axis.id;
+        this.lastMousePos = { x: e.clientX, y: e.clientY };
+        this.container.style.cursor = "ns-resize";
+        return;
+      }
+    }
+
     // Check if mouse is in plot area
     if (
       mouseX >= plotArea.x &&
@@ -223,6 +277,7 @@ export class InteractionManager {
     ) {
       if (this.isPanMode) {
         this.isDragging = true;
+        this.panningAxisId = undefined;
         this.lastMousePos = { x: e.clientX, y: e.clientY };
         this.container.style.cursor = "grabbing";
       } else {
@@ -244,7 +299,7 @@ export class InteractionManager {
     if (this.isDragging) {
       const deltaX = e.clientX - this.lastMousePos.x;
       const deltaY = e.clientY - this.lastMousePos.y;
-      this.callbacks.onPan(deltaX, deltaY);
+      this.callbacks.onPan(deltaX, deltaY, this.panningAxisId);
       this.lastMousePos = { x: e.clientX, y: e.clientY };
     } else if (this.isBoxSelecting) {
       const x = Math.min(this.selectionStart.x, mouseX);
@@ -260,12 +315,14 @@ export class InteractionManager {
       this.callbacks.onBoxZoom(null); // Signal to apply
     }
     this.isDragging = false;
+    this.panningAxisId = undefined;
     this.isBoxSelecting = false;
     this.container.style.cursor = "";
   }
 
   private handleMouseLeave(): void {
     this.isDragging = false;
+    this.panningAxisId = undefined;
     this.container.style.cursor = "";
     this.callbacks.onCursorLeave();
   }
@@ -278,6 +335,7 @@ export class InteractionManager {
     if (e.touches.length === 1) {
       const touch = e.touches[0];
       this.isDragging = true;
+      this.panningAxisId = undefined;
       this.lastMousePos = { x: touch.clientX, y: touch.clientY };
     }
   }
@@ -291,13 +349,14 @@ export class InteractionManager {
     const deltaX = touch.clientX - this.lastMousePos.x;
     const deltaY = touch.clientY - this.lastMousePos.y;
 
-    this.callbacks.onPan(deltaX, deltaY);
+    this.callbacks.onPan(deltaX, deltaY, this.panningAxisId);
 
     this.lastMousePos = { x: touch.clientX, y: touch.clientY };
   }
 
   private handleTouchEnd(): void {
     this.isDragging = false;
+    this.panningAxisId = undefined;
   }
 
   // ----------------------------------------
