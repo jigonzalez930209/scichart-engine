@@ -67,6 +67,38 @@ chart.addSeries({
 })
 ```
 
+### Bar Series
+
+```typescript
+chart.addBar({
+  id: 'sales',
+  data: {
+    x: new Float32Array([1, 2, 3, 4, 5]),
+    y: new Float32Array([120, 150, 180, 210, 190]),
+  },
+  style: {
+    color: '#00f2ff',
+    barWidth: 0.6
+  }
+})
+```
+
+### Heatmap Series
+
+```typescript
+chart.addHeatmap({
+  id: 'matrix',
+  data: {
+    xValues: [0, 1, 2],
+    yValues: [0, 1, 2],
+    zValues: new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+  },
+  style: {
+    colorScale: { name: 'viridis', min: 0, max: 10 }
+  }
+})
+```
+
 ## Data Requirements
 
 ::: warning TypedArrays Required

@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useData } from 'vitepress'
 
 const props = defineProps<{
-  type?: 'basic' | 'realtime' | 'large' | 'scatter' | 'multi' | 'annotations' | 'step' | 'errorbars' | 'symbols' | 'multi-axis' | 'fitting' | 'analysis' | 'area'
+  type?: 'basic' | 'realtime' | 'large' | 'scatter' | 'multi' | 'annotations' | 'step' | 'errorbars' | 'symbols' | 'multi-axis' | 'fitting' | 'analysis' | 'area' | 'bar' | 'heatmap'
   height?: string
   points?: number
 }>()
@@ -125,6 +125,10 @@ function initDemo() {
     generateAnalysisDemo()
   } else if (type === 'area') {
     generateAreaDemo()
+  } else if (type === 'bar') {
+    generateBarDemo()
+  } else if (type === 'heatmap') {
+    generateHeatmapDemo()
   } else {
     generateBasicData(n)
   }
@@ -769,6 +773,57 @@ function generateAnnotationsDemo() {
   })
   
   pointCount.value = n
+}
+
+function generateBarDemo() {
+  const n = 12;
+  const x = new Float32Array(n).map((_, i) => i);
+  const y = new Float32Array(n).map(() => 10 + Math.random() * 50);
+  
+  chart.addBar({
+    id: 'bars',
+    data: { x, y },
+    style: { 
+      color: '#00f2ff',
+      barWidth: 0.7
+    }
+  });
+  
+  pointCount.value = n;
+}
+
+function generateHeatmapDemo() {
+  const w = 50;
+  const h = 50;
+  const x = new Float32Array(w).map((_, i) => i);
+  const y = new Float32Array(h).map((_, i) => i);
+  const z = new Float32Array(w * h);
+  
+  for (let j = 0; j < h; j++) {
+    for (let i = 0; i < w; i++) {
+      const dx = (i - w / 2) / 5;
+      const dy = (j - h / 2) / 5;
+      z[j * w + i] = Math.cos(dx * dx + dy * dy) * Math.exp(-(dx * dx + dy * dy) / 10);
+    }
+  }
+  
+  chart.addHeatmap({
+    id: 'heatmap',
+    data: { xValues: x, yValues: y, zValues: z },
+    style: {
+      colorScale: { 
+        name: 'viridis',
+        min: -1,
+        max: 1
+      },
+      interpolation: 'bilinear'
+    }
+  });
+  
+  // Set initial view to show the heatmap better
+  chart.zoom({ x: [0, w-1], y: [0, h-1] });
+  
+  pointCount.value = w * h;
 }
 
 function startRealtime() {
