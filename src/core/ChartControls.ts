@@ -89,10 +89,8 @@ export class ChartControls {
   private updateToolbarStyle(): void {
     const isDark = this.isDarkTheme();
 
-    const bg = isDark ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.95)";
-    const borderColor = isDark
-      ? "rgba(255, 255, 255, 0.2)"
-      : "rgba(0, 0, 0, 0.15)";
+    const bg = this.theme.legend.backgroundColor; // Use legend background for consistency
+    const borderColor = this.theme.legend.borderColor;
     const shadow = isDark
       ? "0 4px 12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1)"
       : "0 4px 12px rgba(0, 0, 0, 0.15)";
@@ -108,7 +106,7 @@ export class ChartControls {
       border: 1px solid ${borderColor};
       border-radius: 8px;
       box-shadow: ${shadow};
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.4, 1);
     `;
   }
 

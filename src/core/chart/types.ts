@@ -1,6 +1,6 @@
 /**
  * Chart Type Definitions
- * 
+ *
  * Interfaces for the Chart API and export options.
  */
 
@@ -25,12 +25,16 @@ import * as analysis from "../../analysis";
 export interface Chart {
   addSeries(options: SeriesOptions | HeatmapOptions): void;
   addBar(options: Omit<SeriesOptions, "type">): void;
-  addHeatmap(options: HeatmapOptions): void;
+  addHeatmap(options: Omit<HeatmapOptions, "type">): void;
   removeSeries(id: string): void;
   updateSeries(id: string, data: SeriesUpdateData): void;
   getSeries(id: string): Series | undefined;
   getAllSeries(): Series[];
-  appendData(id: string, x: number[] | Float32Array, y: number[] | Float32Array): void;
+  appendData(
+    id: string,
+    x: number[] | Float32Array,
+    y: number[] | Float32Array
+  ): void;
   setAutoScroll(enabled: boolean): void;
   setMaxPoints(id: string, maxPoints: number): void;
   addFitLine(seriesId: string, type: FitType, options?: FitOptions): string;
@@ -66,6 +70,17 @@ export interface Chart {
   // Export methods
   exportCSV(options?: ExportOptions): string;
   exportJSON(options?: ExportOptions): string;
+  /** Attach a plugin to extend chart functionality */
+  use(plugin: ChartPlugin): void;
+}
+
+export interface ChartPlugin {
+  name: string;
+  init?: (chart: Chart) => void;
+  onBeforeRender?: (chart: Chart) => void;
+  onAfterRender?: (chart: Chart) => void;
+  onSeriesAdded?: (series: Series) => void;
+  destroy?: () => void;
 }
 
 /** Options for data export */

@@ -8,30 +8,7 @@
 import type { Scale } from "../scales";
 import type { ChartTheme } from "../theme";
 import type { Series } from "./Series";
-
-// ============================================
-// Types
-// ============================================
-
-export interface PlotArea {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface AxisLabels {
-  x?: string;
-  y?: string;
-}
-
-export interface CursorState {
-  enabled: boolean;
-  x: number;
-  y: number;
-  crosshair: boolean;
-  tooltipText?: string;
-}
+import type { PlotArea, CursorState } from "../types";
 
 // ============================================
 // Overlay Renderer Class

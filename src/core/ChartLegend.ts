@@ -82,20 +82,14 @@ export class ChartLegend {
       this.theme.name.toLowerCase().includes("midnight") ||
       this.theme.name.toLowerCase().includes("electro");
 
-    const bg = isDark ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.95)";
-    const borderColor = isDark
-      ? "rgba(255, 255, 255, 0.15)"
-      : "rgba(0, 0, 0, 0.1)";
-    const shadow = isDark
-      ? "0 4px 12px rgba(0, 0, 0, 0.6)"
-      : "0 4px 12px rgba(0, 0, 0, 0.15)";
-
-    this.container.style.background = bg;
+    this.container.style.background = this.theme.legend.backgroundColor;
     this.container.style.backdropFilter = "blur(12px) saturate(180%)";
     (this.container.style as any).webkitBackdropFilter =
       "blur(12px) saturate(180%)";
-    this.container.style.border = `1px solid ${borderColor}`;
-    this.container.style.boxShadow = shadow;
+    this.container.style.border = `1px solid ${this.theme.legend.borderColor}`;
+    this.container.style.boxShadow = isDark
+      ? "0 4px 12px rgba(0, 0, 0, 0.6)"
+      : "0 4px 12px rgba(0, 0, 0, 0.15)";
   }
 
   private initDragging(): void {
@@ -240,6 +234,7 @@ export class ChartLegend {
         const typeStr = String(type).toLowerCase();
         const isScatter = typeStr === 'scatter' || typeStr === '1' || (typeStr === 'line' && !!style.symbol);
         const isLineScatter = typeStr.includes('scatter') || typeStr === '2';
+        const isArea = typeStr === 'area' || typeStr === 'band';
 
         if (isScatter) {
           this.drawSymbol(ctx, symbol, centerX, centerY, size * 0.8);
@@ -249,6 +244,20 @@ export class ChartLegend {
           ctx.lineTo(size, centerY);
           ctx.stroke();
           this.drawSymbol(ctx, symbol, centerX, centerY, size * 0.6);
+        } else if (isArea) {
+          ctx.globalAlpha = 0.6;
+          ctx.fillRect(0, size * 0.2, size, size * 0.6);
+          ctx.globalAlpha = 1.0;
+          ctx.strokeRect(0, size * 0.2, size, size * 0.6);
+        } else if (typeStr === 'candlestick') {
+          const bullColor = (style as any).bullishColor || '#26a69a';
+          ctx.fillStyle = bullColor;
+          ctx.fillRect(size * 0.3, size * 0.2, size * 0.4, size * 0.6);
+          ctx.beginPath();
+          ctx.moveTo(size * 0.5, 0);
+          ctx.lineTo(size * 0.5, size);
+          ctx.strokeStyle = bullColor;
+          ctx.stroke();
         } else {
           ctx.beginPath();
           ctx.moveTo(0, centerY);
@@ -258,7 +267,7 @@ export class ChartLegend {
       }
 
       const label = document.createElement("span");
-      label.textContent = s.getId();
+      label.textContent = s.getName();
 
       item.appendChild(swatch);
       item.appendChild(label);
@@ -426,7 +435,7 @@ export class ChartLegend {
       }
 
       ctx.fillStyle = legend.textColor;
-      ctx.fillText(s.getId(), x + padding + swatchSize + 8 * dpr, itemY);
+      ctx.fillText(s.getName(), x + padding + swatchSize + 8 * dpr, itemY);
     });
 
     ctx.restore();

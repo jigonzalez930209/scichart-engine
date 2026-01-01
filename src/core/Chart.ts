@@ -14,7 +14,8 @@ export { createChart, ChartImpl } from "./chart/ChartCore";
 
 // Re-export utilities for advanced usage
 export { exportToCSV, exportToJSON, exportToImage } from "./chart/ChartExporter";
-export { applyZoom, applyPan, autoScaleAll } from "./chart/ChartNavigation";
+export { applyZoom, applyPan } from "./chart/ChartNavigation";
+export { autoScaleAll, handleBoxZoom } from "./chart/ChartScaling";
 export type { NavigationContext } from "./chart/ChartNavigation";
 export type { RenderContext } from "./chart/ChartRenderer";
 

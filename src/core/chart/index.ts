@@ -10,9 +10,8 @@ export { exportToCSV, exportToJSON, exportToImage } from './ChartExporter';
 export { 
   applyZoom, 
   applyPan, 
-  autoScaleAll, 
-  handleBoxZoom
 } from './ChartNavigation';
+export { autoScaleAll, handleBoxZoom } from './ChartScaling';
 export type { NavigationContext } from './ChartNavigation';
 export {
   prepareSeriesData,

@@ -192,3 +192,11 @@ export function resizeCanvases(
   overlayCtx.scale(dpr, dpr);
   return true;
 }
+
+export function pixelToDataX(px: number, plotArea: { x: number, width: number }, viewBounds: { xMin: number, xMax: number }): number {
+  return viewBounds.xMin + ((px - plotArea.x) / plotArea.width) * (viewBounds.xMax - viewBounds.xMin);
+}
+
+export function pixelToDataY(py: number, plotArea: { y: number, height: number }, viewBounds: { yMin: number, yMax: number }): number {
+  return viewBounds.yMin + (1 - (py - plotArea.y) / plotArea.height) * (viewBounds.yMax - viewBounds.yMin);
+}

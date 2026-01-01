@@ -8,11 +8,11 @@ import type { Bounds, CursorOptions, AxisOptions } from "../../types";
 import type { Series } from "../Series";
 import type { Scale } from "../../scales";
 import type { NativeWebGLRenderer, NativeSeriesRenderData as SeriesRenderData } from "../../renderer/NativeWebGLRenderer";
-import type { OverlayRenderer, CursorState } from "../OverlayRenderer";
+import type { OverlayRenderer } from "../OverlayRenderer";
+import type { PlotArea, CursorState, ChartEventMap } from "../../types";
 import type { AnnotationManager } from "../annotations";
 import type { ChartStatistics } from "../ChartStatistics";
 import type { EventEmitter } from "../EventEmitter";
-import type { ChartEventMap } from "../../types";
 
 export interface RenderContext {
   webglCanvas: HTMLCanvasElement;
@@ -37,7 +37,7 @@ export interface RenderContext {
   showStatistics: boolean;
   events: EventEmitter<ChartEventMap>;
   updateSeriesBuffer: (s: Series) => void;
-  getPlotArea: () => { x: number; y: number; width: number; height: number };
+  getPlotArea: () => PlotArea;
   pixelToDataX: (px: number) => number;
   pixelToDataY: (py: number) => number;
 }
@@ -47,7 +47,7 @@ export interface RenderContext {
  */
 export function prepareSeriesData(
   ctx: RenderContext,
-  plotArea: { x: number; y: number; width: number; height: number }
+  plotArea: PlotArea
 ): SeriesRenderData[] {
   const seriesData: SeriesRenderData[] = [];
 
@@ -94,9 +94,11 @@ export function prepareSeriesData(
         yBounds,
       };
 
-      // For band and area series, count is doubled (2 vertices per point)
-      if (seriesType === 'band' || seriesType === 'area') {
+      // Special count multipliers for geometry-heavy types
+      if (seriesType === "band" || seriesType === "area") {
         renderData.count = s.getPointCount() * 2;
+      } else if (seriesType === "bar") {
+        renderData.count = s.getPointCount() * 6;
       }
       
       // Add step buffer for step types
@@ -150,8 +152,35 @@ export function prepareSeriesData(
           renderData.colormapTexture = ctx.renderer.getTexture(colormapId);
         }
       }
-      
-      seriesData.push(renderData);
+
+      if (seriesType === 'candlestick') {
+        const bullishBuf = ctx.renderer.getBuffer(`${s.getId()}_bullish`);
+        if (bullishBuf) {
+          seriesData.push({
+            id: `${s.getId()}_bullish`,
+            buffer: bullishBuf,
+            count: (s as any)._bullishCount || 0,
+            style: { ...s.getStyle(), color: (s.getStyle() as any).bullishColor || '#26a69a' },
+            visible: s.isVisible(),
+            type: 'bar',
+            yBounds,
+          });
+        }
+        const bearishBuf = ctx.renderer.getBuffer(`${s.getId()}_bearish`);
+        if (bearishBuf) {
+          seriesData.push({
+            id: `${s.getId()}_bearish`,
+            buffer: bearishBuf,
+            count: (s as any)._bearishCount || 0,
+            style: { ...s.getStyle(), color: (s.getStyle() as any).bearishColor || '#ef5350' },
+            visible: s.isVisible(),
+            type: 'bar',
+            yBounds,
+          });
+        }
+      } else {
+        seriesData.push(renderData);
+      }
     }
   });
 
@@ -163,7 +192,7 @@ export function prepareSeriesData(
  */
 export function renderOverlay(
   ctx: RenderContext,
-  plotArea: { x: number; y: number; width: number; height: number },
+  plotArea: PlotArea,
   primaryYScale: Scale
 ): void {
   const rect = ctx.container.getBoundingClientRect();
