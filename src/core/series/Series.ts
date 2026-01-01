@@ -40,6 +40,9 @@ export class Series {
   private cycle?: number;
   private maxPoints?: number;
 
+  public bullishCount = 0;
+  public bearishCount = 0;
+
   private heatmapData?: HeatmapData;
   private heatmapStyle?: HeatmapStyle;
 
