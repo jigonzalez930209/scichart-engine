@@ -41,8 +41,8 @@ export function updateSeriesBuffer(ctx: any, s: Series): void {
       ctx.renderer.createBuffer(`${seriesId}_bullish`, bullish);
       ctx.renderer.createBuffer(`${seriesId}_bearish`, bearish);
       // Store counts for rendering
-      (s as any)._bullishCount = (bullish.length / 2);
-      (s as any)._bearishCount = (bearish.length / 2);
+      s.bullishCount = (bullish.length / 2);
+      s.bearishCount = (bearish.length / 2);
     }
   } else {
     ctx.renderer.createBuffer(seriesId, interleaveData(d.x, d.y));

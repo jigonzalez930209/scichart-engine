@@ -54,7 +54,17 @@ export interface AxisOptions {
 // Series Types
 // ============================================
 
-export type SeriesType = "line" | "scatter" | "line+scatter" | "step" | "step+scatter" | "band" | "area" | "bar" | "heatmap";
+export type SeriesType =
+  | "line"
+  | "scatter"
+  | "line+scatter"
+  | "step"
+  | "step+scatter"
+  | "band"
+  | "area"
+  | "bar"
+  | "heatmap"
+  | "candlestick";
 
 /** Step mode defines where the step occurs */
 export type StepMode = "before" | "after" | "center";
@@ -81,6 +91,14 @@ export interface SeriesData {
   xErrorMinus?: Float32Array | Float64Array;
   /** Second Y-values for band/area charts (lower boundary or baseline) */
   y2?: Float32Array | Float64Array;
+  /** Open values for OHLC/Candlestick */
+  open?: Float32Array | Float64Array;
+  /** High values for OHLC/Candlestick */
+  high?: Float32Array | Float64Array;
+  /** Low values for OHLC/Candlestick */
+  low?: Float32Array | Float64Array;
+  /** Close values for OHLC/Candlestick */
+  close?: Float32Array | Float64Array;
 }
 
 /** Error bar styling options */
@@ -123,15 +141,15 @@ export interface SeriesStyle {
 }
 
 /** Available scatter symbol shapes */
-export type ScatterSymbol = 
-  | 'circle'      // Default filled circle
-  | 'square'      // Filled square (diamond rotated 45°)
-  | 'diamond'     // Diamond shape
-  | 'triangle'    // Triangle pointing up
-  | 'triangleDown'// Triangle pointing down
-  | 'cross'       // + shape
-  | 'x'           // X shape
-  | 'star';       // 5-pointed star
+export type ScatterSymbol =
+  | "circle" // Default filled circle
+  | "square" // Filled square (diamond rotated 45°)
+  | "diamond" // Diamond shape
+  | "triangle" // Triangle pointing up
+  | "triangleDown" // Triangle pointing down
+  | "cross" // + shape
+  | "x" // X shape
+  | "star"; // 5-pointed star
 
 export interface SeriesOptions {
   /** Unique identifier */
@@ -146,10 +164,14 @@ export interface SeriesOptions {
   style?: SeriesStyle;
   /** Visibility */
   visible?: boolean;
+  /** Display name in legend */
+  name?: string;
   /** Cycle number (for CV) */
   cycle?: number;
   /** Maximum number of points to keep (rolling window) */
   maxPoints?: number;
+  /** Identifier for stacking series (same ID will be stacked together) */
+  stackId?: string;
 }
 
 export interface SeriesUpdateData {
@@ -159,6 +181,14 @@ export interface SeriesUpdateData {
   y?: Float32Array | Float64Array;
   /** New Y2 values (for bands) */
   y2?: Float32Array | Float64Array;
+  /** New Open values (for candlesticks) */
+  open?: Float32Array | Float64Array;
+  /** New High values (for candlesticks) */
+  high?: Float32Array | Float64Array;
+  /** New Low values (for candlesticks) */
+  low?: Float32Array | Float64Array;
+  /** New Close values (for candlesticks) */
+  close?: Float32Array | Float64Array;
   /** If true, append to existing data; if false, replace */
   append?: boolean;
 }
@@ -167,13 +197,14 @@ export interface SeriesUpdateData {
 // Bar Chart Types
 // ============================================
 
-export interface BarStyle extends Omit<SeriesStyle, 'pointSize' | 'symbol' | 'smoothing' | 'stepMode'> {
+export interface BarStyle
+  extends Omit<SeriesStyle, "pointSize" | "symbol" | "smoothing" | "stepMode"> {
   /** Bar width in data units (auto if not specified) */
   barWidth?: number;
   /** Gap between bars as a fraction of bar width (default: 0.2) */
   barGap?: number;
   /** Bar alignment: 'center' (default) | 'edge' */
-  barAlign?: 'center' | 'edge';
+  barAlign?: "center" | "edge";
 }
 
 // ============================================
@@ -181,10 +212,52 @@ export interface BarStyle extends Omit<SeriesStyle, 'pointSize' | 'symbol' | 'sm
 // ============================================
 
 /** Color scale names for heatmaps */
-export type ColorScaleName = 'viridis' | 'plasma' | 'inferno' | 'magma' | 'jet' | 'grayscale';
+export type ColorScaleName =
+  | "viridis"
+  | "plasma"
+  | "inferno"
+  | "magma"
+  | "jet"
+  | "grayscale";
 
 /** Interpolation method for heatmap rendering */
-export type InterpolationType = 'nearest' | 'bilinear';
+export type InterpolationType = "nearest" | "bilinear";
+
+// ============================================
+// Overlay Types
+// ============================================
+
+export interface PlotArea {
+  /** X position of plot area relative to canvas */
+  x: number;
+  /** Y position of plot area relative to canvas */
+  y: number;
+  /** Width of plot area */
+  width: number;
+  /** Height of plot area */
+  height: number;
+  /** Inner margins from container edges */
+  left?: number;
+  /** Inner margins from container edges */
+  right?: number;
+  /** Inner margins from container edges */
+  top?: number;
+  /** Inner margins from container edges */
+  bottom?: number;
+}
+
+export interface CursorState {
+  enabled: boolean;
+  x: number;
+  y: number;
+  crosshair: boolean;
+  tooltipText?: string;
+}
+
+export interface AxisLabels {
+  x?: string;
+  y?: string;
+}
 
 export interface ColorScale {
   /** Color scale name */
@@ -217,8 +290,8 @@ export interface HeatmapStyle {
   opacity?: number;
 }
 
-export interface HeatmapOptions extends Omit<SeriesOptions, 'data' | 'style'> {
-  type: 'heatmap';
+export interface HeatmapOptions extends Omit<SeriesOptions, "data" | "style"> {
+  type: "heatmap";
   /** Heatmap data with X, Y, Z values */
   data: HeatmapData;
   /** Heatmap-specific styling */
@@ -232,6 +305,8 @@ export interface HeatmapOptions extends Omit<SeriesOptions, 'data' | 'style'> {
 export interface ChartOptions {
   /** Target container element */
   container: HTMLDivElement;
+  /** Renderer backend selection (default: 'webgl') */
+  renderer?: "webgl" | "webgpu";
   /** X-axis configuration */
   xAxis?: AxisOptions;
   /** Y-axis configuration (single or array) */

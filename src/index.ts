@@ -16,15 +16,15 @@
 // ============================================
 // Core exports
 // ============================================
-export { createChart } from './core/Chart';
-export { Series } from './core/Series';
-export { EventEmitter } from './core/EventEmitter';
-export type { Chart, ChartOptions, ExportOptions } from './core/Chart';
+export { createChart } from "./core/Chart";
+export { Series } from "./core/Series";
+export { EventEmitter } from "./core/EventEmitter";
+export type { Chart, ChartOptions, ExportOptions } from "./core/Chart";
 
 // ============================================
 // Annotations
 // ============================================
-export { AnnotationManager } from './core/annotations';
+export { AnnotationManager } from "./core/annotations";
 export type {
   Annotation,
   AnnotationType,
@@ -34,7 +34,7 @@ export type {
   BandAnnotation,
   TextAnnotation,
   ArrowAnnotation,
-} from './core/annotations';
+} from "./core/annotations";
 
 // ============================================
 // Types
@@ -57,12 +57,12 @@ export type {
   ErrorBarStyle,
   ErrorBarDirection,
   ScatterSymbol,
-} from './types';
+} from "./types";
 
 // ============================================
 // Scales
 // ============================================
-export { LinearScale, LogScale, createScale, type Scale } from './scales';
+export { LinearScale, LogScale, createScale, type Scale } from "./scales";
 
 // ============================================
 // Renderer
@@ -73,10 +73,12 @@ export {
   parseColor,
   createRenderer,
   createNativeRenderer,
+  WebGPURenderer,
+  type WebGPURendererOptions,
   type IWebGLRenderer,
   type SeriesRenderData,
   type RenderOptions,
-} from './renderer';
+} from "./renderer";
 
 // ============================================
 // Theme
@@ -94,16 +96,19 @@ export {
   type AxisTheme,
   type LegendTheme,
   type CursorTheme,
-} from './theme';
+} from "./theme";
 
 // ============================================
 // Overlay
 // ============================================
 export {
   OverlayRenderer,
-  type PlotArea,
-  type CursorState,
-} from './core/OverlayRenderer';
+} from "./core/OverlayRenderer";
+
+export type {
+  PlotArea,
+  CursorState,
+} from "./types";
 
 // ============================================
 // Downsampling
@@ -112,7 +117,7 @@ export {
   lttbDownsample,
   minMaxDownsample,
   calculateTargetPoints,
-} from './workers/downsample';
+} from "./workers/downsample";
 
 // ============================================
 // Data Analysis utilities
@@ -134,13 +139,22 @@ export {
   type PrefixInfo,
   type ValidationResult,
   type DataStats,
-} from './analysis';
+} from "./analysis";
 
-// Legacy exports for backward compatibility
+// ============================================
+// Streaming utilities
+// ============================================
 export {
-  formatWithPrefix as formatPotential,
-  formatWithPrefix as formatCurrent,
-} from './analysis';
+  createWebSocketStream,
+  connectStreamToChart,
+  createMessageParser,
+  createMockStream,
+  type WebSocketStream,
+  type WebSocketStreamConfig,
+  type DataPoint,
+  type StreamStats,
+  type WebSocketState,
+} from "./streaming";
 
 // ============================================
 // React bindings
@@ -153,4 +167,70 @@ export {
   type SciChartSeries,
   type UseSciChartOptions,
   type UseSciChartReturn,
-} from './react';
+} from "./react";
+
+// ============================================
+// GPU Abstraction Layer (Experimental)
+// ============================================
+export {
+  // Backends
+  WebGPUBackend,
+  WebGLBackend,
+  
+  // Renderer facade
+  GpuRenderer,
+  createGpuRenderer,
+  
+  // Adapter utilities
+  SeriesAdapter,
+  parseColorToRGBA,
+  
+  // Resource management
+  PipelineCache,
+  BaseBufferStore,
+  BaseTextureStore,
+  
+  // Benchmark
+  GpuBenchmark,
+  
+  // GPU Compute
+  GpuCompute,
+} from "./gpu";
+
+export type {
+  // Core types
+  GpuBackendType,
+  RGBA,
+  GpuViewport,
+  GpuBackend,
+  BufferId,
+  TextureId,
+  
+  // Frame types
+  FrameUniforms,
+  
+  // Draw types
+  DrawKind,
+  DrawCall,
+  DrawList,
+  PointSymbol,
+  
+  // Adapter types
+  SeriesData as GpuSeriesData,
+  Bounds as GpuBounds,
+  GpuRenderOptions,
+  GpuRendererOptions,
+  BackendPreference,
+  WebGPUBackendOptions,
+  
+  // Benchmark types
+  BenchmarkResult,
+  BenchmarkOptions,
+  
+  // Compute types
+  DataStats as GpuDataStats,
+  DataBounds as GpuDataBounds,
+  Peak as GpuPeak,
+  GpuComputeOptions,
+} from "./gpu";
+

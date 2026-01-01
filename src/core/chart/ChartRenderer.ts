@@ -159,10 +159,10 @@ export function prepareSeriesData(
           seriesData.push({
             id: `${s.getId()}_bullish`,
             buffer: bullishBuf,
-            count: (s as any)._bullishCount || 0,
+            count: s.bullishCount || 0,
             style: { ...s.getStyle(), color: (s.getStyle() as any).bullishColor || '#26a69a' },
             visible: s.isVisible(),
-            type: 'bar',
+            type: 'bar', // Using bar renderer (triangles)
             yBounds,
           });
         }
@@ -171,10 +171,10 @@ export function prepareSeriesData(
           seriesData.push({
             id: `${s.getId()}_bearish`,
             buffer: bearishBuf,
-            count: (s as any)._bearishCount || 0,
+            count: s.bearishCount || 0,
             style: { ...s.getStyle(), color: (s.getStyle() as any).bearishColor || '#ef5350' },
             visible: s.isVisible(),
-            type: 'bar',
+            type: 'bar', // Using bar renderer (triangles)
             yBounds,
           });
         }
