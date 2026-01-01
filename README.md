@@ -7,11 +7,12 @@ A high-performance, WebGL-powered scientific charting engine built for precision
 
 ## ✨ Features
 
--   **🚀 High Performance**: Render millions of data points with ease using a specialized raw WebGL renderer.
+-   **🚀 High Performance**: Render millions of data points at 60 FPS using a specialized raw WebGL renderer.
 -   **📈 Advanced Analysis**: Built-in peak detection, integration, baseline correction, and customizable curve fitting (linear/poly/exp).
--   **📊 Specialized Series**: Support for Lines, Scatter (SDF symbols), Step charts, Band series, and Area charts.
+-   **📊 Specialized Series**: Support for Lines, Scatter (SDF symbols), Step charts, Band series, Area charts, **Candlesticks** (OHLC), and **Stacked Charts**.
 -   **↕️ Multi-Axis Engine**: Independent scales and units with axis-specific scrolling and zooming.
--   **📏 Professional Tooling**: Real-time Statistics panel (Min/Max/Mean/Area), Annotations (Lines/Shapes/Text), and Data Export.
+-   **📏 Professional Tooling**: Real-time Statistics panel, Annotations (Lines/Shapes/Text), and **high-fidelity SVG/PNG export**.
+-   **🔌 Extensible**: **Plugin System** with lifecycle hooks for custom drawing and data analysis.
 -   **⚛️ Framework First**: Native React support via hooks and high-level components.
 -   **🎨 Dynamic Theming**: Sleek built-in themes (Light/Midnight) with support for custom CSS-based skins.
 -   **🏗️ Modular Core**: Built on a modern, decoupled architecture for maximum extendability.
