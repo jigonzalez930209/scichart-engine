@@ -69,8 +69,10 @@ export function prepareSeriesData(
     }
 
     const buf = ctx.renderer.getBuffer(s.getId());
-    if (buf) {
-      const seriesType = s.getType();
+    const seriesType = s.getType();
+    
+    // Candlesticks use sub-buffers, so main buffer might be missing
+    if (buf || seriesType === 'candlestick') {
       
       // Determine Y-bounds for this series
       const axisId = s.getYAxisId() || ctx.primaryYAxisId;
@@ -84,72 +86,79 @@ export function prepareSeriesData(
       // Map area type to band for rendering (area fills to y=0)
       const renderType = seriesType === 'area' ? 'band' : seriesType;
 
-      const renderData: SeriesRenderData = {
-        id: s.getId(),
-        buffer: buf,
-        count: s.getPointCount(),
-        style: s.getStyle(),
-        visible: s.isVisible(),
-        type: renderType,
-        yBounds,
-      };
+      // Base render data (only if buffer exists)
+      let renderData: SeriesRenderData | null = null;
+      
+      if (buf) {
+        renderData = {
+          id: s.getId(),
+          buffer: buf,
+          count: s.getPointCount(),
+          style: s.getStyle(),
+          visible: s.isVisible(),
+          type: renderType,
+          yBounds,
+        };
+      }
 
       // Special count multipliers for geometry-heavy types
-      if (seriesType === "band" || seriesType === "area") {
-        renderData.count = s.getPointCount() * 2;
-      } else if (seriesType === "bar") {
-        renderData.count = s.getPointCount() * 6;
-      }
+      if (renderData) {
+        if (seriesType === "band" || seriesType === "area") {
+          renderData.count = s.getPointCount() * 2;
+        } else if (seriesType === "bar") {
+          renderData.count = s.getPointCount() * 6;
+        }
       
-      // Add step buffer for step types
-      if (seriesType === 'step' || seriesType === 'step+scatter') {
-        const stepBuf = ctx.renderer.getBuffer(`${s.getId()}_step`);
-        if (stepBuf) {
-          renderData.stepBuffer = stepBuf;
-          // Calculate step count based on mode
-          const stepMode = s.getStyle().stepMode ?? 'after';
-          const pointCount = s.getPointCount();
-          if (stepMode === 'center') {
-            renderData.stepCount = 1 + (pointCount - 1) * 3;
-          } else {
-            renderData.stepCount = pointCount * 2 - 1;
+        // Add step buffer for step types
+        if (seriesType === 'step' || seriesType === 'step+scatter') {
+          const stepBuf = ctx.renderer.getBuffer(`${s.getId()}_step`);
+          if (stepBuf) {
+            renderData.stepBuffer = stepBuf;
+            // Calculate step count based on mode
+            const stepMode = s.getStyle().stepMode ?? 'after';
+            const pointCount = s.getPointCount();
+            if (stepMode === 'center') {
+              renderData.stepCount = 1 + (pointCount - 1) * 3;
+            } else {
+              renderData.stepCount = pointCount * 2 - 1;
+            }
           }
         }
-      }
       
-      if (seriesType === 'heatmap') {
-        const hData = s.getHeatmapData();
-        const hStyle = s.getHeatmapStyle();
-        if (hData) {
-          // Heatmap count is 6 vertices per cell (2 triangles)
-          const w = hData.xValues.length;
-          const h = hData.yValues.length;
-          renderData.count = (w - 1) * (h - 1) * 6;
-          
-          // Calculate Z-bounds if not provided
-          let zMin = Infinity, zMax = -Infinity;
-          for (let i = 0; i < hData.zValues.length; i++) {
-            const v = hData.zValues[i];
-            if (v < zMin) zMin = v;
-            if (v > zMax) zMax = v;
-          }
-          if (zMin === zMax) {
-            zMin -= 1;
-            zMax += 1;
-          }
+        if (seriesType === 'heatmap') {
+          const hData = s.getHeatmapData();
+          const hStyle = s.getHeatmapStyle();
+          if (hData) {
+            // Heatmap count is 6 vertices per cell (2 triangles)
+            const w = hData.xValues.length;
+            const h = hData.yValues.length;
+            renderData.count = (w - 1) * (h - 1) * 6;
+            
+            // Calculate Z-bounds if not provided
+            let zMin = Infinity, zMax = -Infinity;
+            for (let i = 0; i < hData.zValues.length; i++) {
+              const v = hData.zValues[i];
+              if (v < zMin) zMin = v;
+              if (v > zMax) zMax = v;
+            }
+            if (zMin === zMax) {
+              zMin -= 1;
+              zMax += 1;
+            }
 
-          renderData.zBounds = { 
-            min: hStyle?.colorScale?.min ?? (zMin === Infinity ? 0 : zMin), 
-            max: hStyle?.colorScale?.max ?? (zMax === -Infinity ? 1 : zMax) 
-          };
-          
-          if (renderData.zBounds.min === renderData.zBounds.max) {
-             renderData.zBounds.max = renderData.zBounds.min + 1;
+            renderData.zBounds = { 
+              min: hStyle?.colorScale?.min ?? (zMin === Infinity ? 0 : zMin), 
+              max: hStyle?.colorScale?.max ?? (zMax === -Infinity ? 1 : zMax) 
+            };
+            
+            if (renderData.zBounds.min === renderData.zBounds.max) {
+               renderData.zBounds.max = renderData.zBounds.min + 1;
+            }
+            
+            // Attach texture
+            const colormapId = `${s.getId()}_colormap`;
+            renderData.colormapTexture = ctx.renderer.getTexture(colormapId);
           }
-          
-          // Attach texture
-          const colormapId = `${s.getId()}_colormap`;
-          renderData.colormapTexture = ctx.renderer.getTexture(colormapId);
         }
       }
 
@@ -178,7 +187,7 @@ export function prepareSeriesData(
             yBounds,
           });
         }
-      } else {
+      } else if (renderData) {
         seriesData.push(renderData);
       }
     }
