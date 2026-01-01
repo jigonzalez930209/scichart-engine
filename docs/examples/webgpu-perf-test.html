@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU Performance Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #111;
+            color: #fff;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .stat {
+            background: #1a1a2e;
+            padding: 10px 20px;
+            border-radius: 8px;
+        }
+
+        .stat.fps {
+            color: #00ff88;
+        }
+
+        .stat.ms {
+            color: #ffaa00;
+        }
+
+        canvas {
+            width: 100%;
+            height: 400px;
+            background: #050510;
+            border-radius: 8px;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #00d4ff33;
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #00d4ff55;
+        }
+
+        .info {
+            margin-top: 20px;
+            color: #888;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🚀 WebGPU Performance Test</h1>
+        <p>Minimal test to verify 60 FPS is achievable</p>
+
+        <div class="stats">
+            <div class="stat fps" id="fps">-- FPS</div>
+            <div class="stat ms" id="ms">-- ms/frame</div>
+            <div class="stat" id="points">-- points</div>
+        </div>
+
+        <canvas id="canvas"></canvas>
+
+        <div class="controls">
+            <button onclick="setPoints(10000)">10K Points</button>
+            <button onclick="setPoints(50000)">50K Points</button>
+            <button onclick="setPoints(100000)">100K Points</button>
+            <button onclick="setPoints(500000)">500K Points</button>
+            <button onclick="setPoints(1000000)">1M Points</button>
+        </div>
+
+        <div class="info" id="info">Initializing WebGPU...</div>
+    </div>
+
+    <script type="module">
+        const canvas = document.getElementById('canvas');
+        const fpsEl = document.getElementById('fps');
+        const msEl = document.getElementById('ms');
+        const pointsEl = document.getElementById('points');
+        const infoEl = document.getElementById('info');
+
+        let device, context, format, pipeline, uniformBuffer, bindGroup;
+        let vertexBuffer = null;
+        let pointCount = 100000;
+        let animating = true;
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let frameTimes = [];
+
+        const SHADER = `
+      struct Uniforms {
+        scale: vec2<f32>,
+        translate: vec2<f32>,
+        color: vec4<f32>,
+        time: f32,
+        amplitude: f32,
+        frequency: f32,
+        _pad: f32,
+      };
+      
+      @group(0) @binding(0) var<uniform> u: Uniforms;
+      
+      @vertex
+      fn vs_main(@location(0) pos: vec2<f32>) -> @builtin(position) vec4<f32> {
+        let animatedY = pos.y + sin(pos.x * u.frequency + u.time) * u.amplitude;
+        let transformed = vec2<f32>(pos.x, animatedY) * u.scale + u.translate;
+        return vec4<f32>(transformed, 0.0, 1.0);
+      }
+      
+      @fragment
+      fn fs_main() -> @location(0) vec4<f32> {
+        return u.color;
+      }
+    `;
+
+        window.setPoints = function (n) {
+            pointCount = n;
+            createVertexBuffer();
+            pointsEl.textContent = `${(n / 1000).toFixed(0)}K points`;
+        };
+
+        function createVertexBuffer() {
+            if (vertexBuffer) vertexBuffer.destroy();
+
+            const data = new Float32Array(pointCount * 2);
+            for (let i = 0; i < pointCount; i++) {
+                data[i * 2] = i / (pointCount - 1);
+                data[i * 2 + 1] = 0.5;
+            }
+
+            vertexBuffer = device.createBuffer({
+                size: data.byteLength,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            });
+            device.queue.writeBuffer(vertexBuffer, 0, data);
+        }
+
+        async function init() {
+            if (!navigator.gpu) {
+                infoEl.textContent = '❌ WebGPU not supported';
+                return;
+            }
+
+            const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+            if (!adapter) {
+                infoEl.textContent = '❌ No WebGPU adapter';
+                return;
+            }
+
+            device = await adapter.requestDevice();
+            context = canvas.getContext('webgpu');
+            format = navigator.gpu.getPreferredCanvasFormat();
+
+            // Set canvas resolution
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+
+            context.configure({ device, format, alphaMode: 'opaque' });
+
+            const module = device.createShaderModule({ code: SHADER });
+
+            const bindGroupLayout = device.createBindGroupLayout({
+                entries: [{
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                    buffer: { type: 'uniform' },
+                }],
+            });
+
+            uniformBuffer = device.createBuffer({
+                size: 48,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            });
+
+            bindGroup = device.createBindGroup({
+                layout: bindGroupLayout,
+                entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+            });
+
+            pipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+                vertex: {
+                    module,
+                    entryPoint: 'vs_main',
+                    buffers: [{
+                        arrayStride: 8,
+                        attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }],
+                    }],
+                },
+                fragment: {
+                    module,
+                    entryPoint: 'fs_main',
+                    targets: [{ format }],
+                },
+                primitive: { topology: 'line-strip' },
+            });
+
+            createVertexBuffer();
+            pointsEl.textContent = `${(pointCount / 1000).toFixed(0)}K points`;
+
+            // Get GPU info
+            try {
+                const info = await adapter.requestAdapterInfo?.() || {};
+                infoEl.textContent = `✅ GPU: ${info.vendor || 'Unknown'} | ${info.device || info.description || 'WebGPU Ready'}`;
+            } catch {
+                infoEl.textContent = '✅ WebGPU Ready';
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        const startTime = performance.now();
+
+        function render() {
+            const frameStart = performance.now();
+            const time = (frameStart - startTime) * 0.002;
+
+            // Update uniforms
+            const uniforms = new Float32Array([
+                2, 2, -1, -1,           // scale, translate
+                0, 0.83, 1, 1,          // color (cyan)
+                time, 0.3, 20.0, 0      // time, amplitude, frequency, pad
+            ]);
+            device.queue.writeBuffer(uniformBuffer, 0, uniforms);
+
+            // Render
+            const encoder = device.createCommandEncoder();
+            const pass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: context.getCurrentTexture().createView(),
+                    clearValue: { r: 0.02, g: 0.02, b: 0.04, a: 1 },
+                    loadOp: 'clear',
+                    storeOp: 'store',
+                }],
+            });
+
+            pass.setPipeline(pipeline);
+            pass.setBindGroup(0, bindGroup);
+            pass.setVertexBuffer(0, vertexBuffer);
+            pass.draw(pointCount);
+            pass.end();
+
+            device.queue.submit([encoder.finish()]);
+
+            // Stats
+            const frameEnd = performance.now();
+            const frameTime = frameEnd - frameStart;
+            frameTimes.push(frameTime);
+            if (frameTimes.length > 60) frameTimes.shift();
+
+            frameCount++;
+            if (frameEnd - lastTime >= 1000) {
+                fpsEl.textContent = `${frameCount} FPS`;
+                const avgMs = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+                msEl.textContent = `${avgMs.toFixed(2)} ms/frame`;
+                frameCount = 0;
+                lastTime = frameEnd;
+            }
+
+            if (animating) requestAnimationFrame(render);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

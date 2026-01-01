@@ -1,7 +1,7 @@
 # 🚀 SciChart Engine - Development Roadmap
 
 > **Versión actual**: v0.1.1  
-> **Última actualización**: 2025-12-31 (17:25)  
+> **Última actualización**: 2026-01-01 (00:00)  
 > **Objetivo**: Convertir SciChart Engine en la librería de charting científico WebGL/WebGPU más potente y accesible del ecosistema open-source.
 
 ---
@@ -19,6 +19,9 @@
 | **Series** | Step Charts | ✅ Completo |
 | **Series** | Error Bars | ✅ Completo |
 | **Series** | Band Series (Area Fill) | ✅ Completo |
+| **Series** | Area Charts | ✅ Completo |
+| **Series** | Bar Charts | ✅ Completo |
+| **Series** | Heatmaps | ✅ Completo |
 | **Series** | Scatter Symbols (SDF) | ✅ Completo |
 | **Interacciones** | Pan (arrastrar) | ✅ Completo |
 | **Interacciones** | Wheel Zoom | ✅ Completo |
@@ -70,8 +73,11 @@ src/
 │   ├── OverlayRenderer.ts     # Capa de anotaciones
 │   └── Series.ts              # Gestión de series
 ├── renderer/
-│   ├── NativeWebGLRenderer.ts # Renderer WebGL puro
-│   └── shaders.ts             # Shaders GLSL
+│   ├── NativeWebGLRenderer.ts # Facade (re-exports)
+│   ├── native/                # WebGL renderer refactor (<250 LOC por módulo)
+│   ├── BarRenderer.ts         # Interleaving/logic para barras
+│   ├── HeatmapRenderer.ts     # Interleaving/colormap helpers
+│   └── shaders.ts             # Shaders GLSL legacy
 ├── overlay/
 │   └── CanvasOverlay.ts       # Canvas 2D para ejes/texto
 ├── analysis/
@@ -102,10 +108,9 @@ src/
     │   TIER 2           │   TIER 3           │
     │   Core Expansions  │   Advanced         │
     │                    │   Features         │
-    │   • Multi Y-Axes   │   • WebGPU         │
-    │   • Area Charts    │   • Heatmaps       │
-    │   • Rolling Buffer │   • FFT Analysis   │
-    │   • Data Fitting   │   • Instanced      │
+    │   • SVG Export     │   • WebGPU         │
+    │   • WebSocket      │   • GPU Analysis   │
+    │   • Linked Charts  │   • Instanced      │
     │   • SVG Export     │     Rendering      │
     │                    │                    │
 BAJO ────────────────────┼──────────────────── ALTO
@@ -161,7 +166,7 @@ chart.addSeries({
 ### 2. 🔥 Heatmaps / Spectrogramas 2D
 
 **Impacto**: ⭐⭐⭐⭐⭐  
-**Esfuerzo**: ⭐⭐⭐⭐  
+**Esfuerzo**: ✅ Implementado  
 **Casos de uso**: EIS, análisis espectral, correlación
 
 ```typescript
@@ -345,8 +350,8 @@ chart.addSeries({
 | **Rolling Window Buffer** | 🔴 Alta | ✅ Completo | Series system |
 | **Append-Only Mode** | 🔴 Alta | ✅ Completo | WebGL optimization |
 | **Auto-scroll** | 🟡 Media | ✅ Completo | View management |
-| **Threshold Lines** | 🟡 Media | ✅ Completo | Annotations |
-| **WebSocket Helpers** | 🟢 Baja | 2 días | None |
+| **Threshold Lines** | ⚠️ Media | ✅ Completo | Annotations |
+| **WebSocket Helpers** | 🟢 Baja | ✅ Completo | None |
 
 <details>
 <summary>📝 Especificación: Rolling Window</summary>
@@ -421,12 +426,12 @@ chart.addFitLine('current', {
 
 | Feature | Prioridad | Esfuerzo | Dependencias |
 |---------|-----------|----------|--------------|
-| **Area Charts** | 🔴 Alta | 3 días | WebGL fill |
-| **Stacked Area** | 🔴 Alta | 2 días | Area charts |
-| **Heatmaps** | 🔴 Alta | 5 días | New renderer |
-| **Contour Plots** | 🟡 Media | 4 días | Heatmaps |
-| **Bar Charts** | 🟡 Media | 3 días | New shader |
-| **Candlestick** | 🟢 Baja | 3 días | OHLC data |
+| **Area Charts** | 🔴 Alta | ✅ Completo | Band rendering |
+| **Stacked Area** | 🔴 Alta | ✅ Completo | Area charts |
+| **Heatmaps** | 🔴 Alta | ✅ Completo | Heatmap renderer |
+| **Contour Plots** | 🟡 Media | ⏳ Pendiente | Heatmaps |
+| **Bar Charts** | 🟡 Media | ✅ Completo | Bar renderer |
+| **Candlestick** | 🟢 Baja | ✅ Completo | OHLC data |
 
 <details>
 <summary>📝 Especificación: Heatmaps</summary>
@@ -434,17 +439,21 @@ chart.addFitLine('current', {
 ```typescript
 chart.addHeatmap({
   id: 'impedance',
-  xValues: frequencies,    // Float32Array
-  yValues: timePoints,     // Float32Array
-  zValues: impedanceMatrix, // Float32Array (flattened 2D)
-  colorScale: {
-    name: 'viridis', // viridis, plasma, inferno, magma, jet
-    min: 0,
-    max: 1000,
-    logScale: false
+  data: {
+    xValues: frequencies,
+    yValues: timePoints,
+    zValues: impedanceMatrix,
   },
-  interpolation: 'bilinear', // nearest, bilinear
-  showColorbar: true
+  style: {
+    colorScale: {
+      name: 'viridis',
+      min: 0,
+      max: 1000,
+      logScale: false,
+    },
+    interpolation: 'bilinear',
+    showColorbar: true,
+  }
 });
 ```
 
@@ -458,12 +467,12 @@ chart.addHeatmap({
 
 | Feature | Prioridad | Esfuerzo | Dependencias |
 |---------|-----------|----------|--------------|
-| **SVG Export** | 🔴 Alta | 4 días | None |
-| **PDF Export** | 🟡 Media | 2 días | SVG export |
-| **Plugin System** | 🔴 Alta | 5 días | Core refactor |
-| **Linked Charts** | 🔴 Alta | 4 días | Event system |
-| **Vue Bindings** | 🟡 Media | 3 días | Core stable |
-| **Svelte Bindings** | 🟡 Media | 3 días | Core stable |
+| **SVG Export** | 🔴 Alta | ✅ Completo | All series types |
+| **PDF Export** | 🟡 Media | ⏳ Pendiente | SVG export |
+| **Plugin System** | 🔴 Alta | ✅ Completo | Core refactor |
+| **Linked Charts** | 🔴 Alta | ⏳ Pendiente | Event system |
+| **Vue Bindings** | 🟡 Media | ⏳ Pendiente | Core stable |
+| **Svelte Bindings** | 🟡 Media | ⏳ Pendiente | Core stable |
 
 <details>
 <summary>📝 Especificación: Plugin System</summary>
@@ -511,11 +520,14 @@ const electrochemPlugin: SciChartPlugin = {
 
 | Feature | Prioridad | Esfuerzo | Dependencias |
 |---------|-----------|----------|--------------|
-| **WebGPU Renderer** | 🔴 Alta | 15 días | None |
-| **GPU Compute Shaders** | 🔴 Alta | 10 días | WebGPU |
-| **Instanced Rendering** | 🟡 Media | 5 días | WebGPU |
-| **LOD System** | 🟡 Media | 5 días | Downsampling |
-| **100M+ Point Support** | 🟡 Media | 5 días | All above |
+| **WebGPU Renderer** | 🔴 Alta | ⚠️ Experimental | None |
+| **GPU Compute Shaders** | 🔴 Alta | ⚠️ Experimental | WebGPU |
+| **Instanced Rendering** | 🟡 Media | ⚠️ Experimental | WebGPU |
+| **LOD System** | 🟡 Media | ⚠️ Experimental | Downsampling |
+| **100M+ Point Support** | 🟡 Media | ⚠️ Experimental | All above |
+
+> ⚠️ **Nota**: WebGPU está en desarrollo experimental. El código existe pero no ha sido testeado en producción.
+> Los archivos relacionados están en `src/gpu/` pero la sección de documentación está comentada.
 
 <details>
 <summary>📝 Especificación: WebGPU Renderer</summary>
@@ -559,8 +571,8 @@ const fft = await chart.compute({
 | **WebGL** | ✅ | ❌ | Parcial | ❌ | ✅ |
 | **WebGPU** | 🔜 v1.0 | ❌ | ❌ | ❌ | ✅ |
 | **React Support** | ✅ First-class | Plugin | ✅ | Manual | ✅ |
-| **Heatmaps** | 🔜 v0.5 | ❌ | ✅ | ✅ | ✅ |
-| **Multiple Y-Axes** | 🔜 v0.2 | ✅ | ✅ | ✅ | ✅ |
+| **Heatmaps** | ✅ | ❌ | ✅ | ✅ | ✅ |
+| **Multiple Y-Axes** | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Real-time Streaming** | ✅ | ⚠️ Lento | ⚠️ Lento | Manual | ✅ |
 | **Open Source** | ✅ MIT | ✅ MIT | ✅ MIT | ✅ BSD | ❌ Comercial |
 | **Bundle Size** | ~50KB | ~200KB | ~3MB | ~250KB | ~500KB |
@@ -619,7 +631,7 @@ Cada feature tiene un nivel de dificultad:
 | Step Charts | 🟢 | `shaders.ts`, `Series.ts` | Unit + Visual |
 | Error Bars | 🟡 | `NativeWebGLRenderer.ts` | Unit + Visual |
 | Multiple Y-Axes | 🟡 | `Chart.ts`, `CanvasOverlay.ts` | Integration |
-| Heatmaps | 🔴 | New renderer module | Full suite |
+| Heatmaps | 🔴 | `renderer/native/*`, `HeatmapRenderer.ts` | Unit + Visual |
 | WebGPU | 🔴 | New renderer module | Full suite |
 
 ---
@@ -667,10 +679,11 @@ Cada feature tiene un nivel de dificultad:
 1. [ ] Publicar v0.2.0 en NPM con todas las mejoras
 2. [x] ~~Escribir documentación para curve fitting y peak analysis~~ ✅ Completo
 3. [x] ~~Area Charts (stacked fill)~~ ✅ Completo - Nuevo tipo de serie 'area'
-4. [ ] Heatmaps
+4. [x] ~~Heatmaps~~ ✅ Completo - Nuevo tipo de serie 'heatmap'
 5. [ ] Tests unitarios para nuevos módulos
-6. [x] **Documentación Band Series** - API docs para series tipo 'band' ✅ NUEVO
-7. [x] **Documentación Statistics Panel** - API docs para el panel de estadísticas ✅ NUEVO
+6. [ ] WebGPU: scaffolding + feature detection + fallback (experimental)
+7. [x] **Documentación Band Series** - API docs para series tipo 'band' ✅ NUEVO
+8. [x] **Documentación Statistics Panel** - API docs para el panel de estadísticas ✅ NUEVO
 
 ---
 

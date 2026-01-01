@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useData } from 'vitepress'
 
 const props = defineProps<{
-  type?: 'basic' | 'realtime' | 'large' | 'scatter' | 'multi' | 'annotations' | 'step' | 'errorbars' | 'symbols' | 'multi-axis' | 'fitting' | 'analysis' | 'area' | 'bar' | 'heatmap'
+  type?: 'basic' | 'realtime' | 'large' | 'scatter' | 'multi' | 'annotations' | 'step' | 'errorbars' | 'symbols' | 'multi-axis' | 'fitting' | 'analysis' | 'area' | 'bar' | 'heatmap' | 'candlestick' | 'stacked' | 'statistics'
   height?: string
   points?: number
 }>()
@@ -41,6 +41,7 @@ onMounted(async () => {
     xAxis: { label: 'Time (s)', auto: true },
     theme: chartTheme.value,
     showControls: true,
+    showStatistics: props.type === 'statistics' || props.type === 'analysis'
   };
 
   if (props.type === 'multi-axis') {
@@ -129,6 +130,12 @@ function initDemo() {
     generateBarDemo()
   } else if (type === 'heatmap') {
     generateHeatmapDemo()
+  } else if (type === 'candlestick') {
+    generateCandlestickDemo()
+  } else if (type === 'stacked') {
+    generateStackedDemo()
+  } else if (type === 'statistics') {
+    generateBasicData(1000)
   } else {
     generateBasicData(n)
   }
@@ -826,6 +833,85 @@ function generateHeatmapDemo() {
   pointCount.value = w * h;
 }
 
+function generateCandlestickDemo() {
+  const n = 100;
+  const x = new Float32Array(n);
+  const open = new Float32Array(n);
+  const high = new Float32Array(n);
+  const low = new Float32Array(n);
+  const close = new Float32Array(n);
+  
+  let current = 100;
+  for (let i = 0; i < n; i++) {
+    x[i] = i;
+    open[i] = current;
+    const change = (Math.random() - 0.5) * 10;
+    close[i] = current + change;
+    high[i] = Math.max(open[i], close[i]) + Math.random() * 5;
+    low[i] = Math.min(open[i], close[i]) - Math.random() * 5;
+    current = close[i];
+  }
+  
+  chart.addSeries({
+    id: 'candles',
+    type: 'candlestick',
+    data: { x, open, high, low, close },
+    style: {
+      bullishColor: '#26a69a',
+      bearishColor: '#ef5350',
+      barWidth: 0.7
+    }
+  });
+  
+  pointCount.value = n;
+}
+
+function generateStackedDemo() {
+  const n = 100;
+  const x = new Float32Array(n);
+  const y1 = new Float32Array(n);
+  const y2 = new Float32Array(n);
+  const y3 = new Float32Array(n);
+  
+  for (let i = 0; i < n; i++) {
+    x[i] = i;
+    y1[i] = 10 + Math.sin(i * 0.1) * 5 + Math.random() * 2;
+    y2[i] = 8 + Math.cos(i * 0.1) * 4 + Math.random() * 2;
+    y3[i] = 12 + Math.sin(i * 0.15) * 6 + Math.random() * 2;
+  }
+  
+  const stackId = 'my-stack';
+  
+  chart.addSeries({
+    id: 'Baseline (S1)',
+    type: 'area',
+    stackId,
+    data: { x, y: y1 },
+    style: { color: 'rgba(255, 107, 107, 0.7)' }
+  });
+  
+  chart.addSeries({
+    id: 'Middle (S2)',
+    type: 'area',
+    stackId,
+    data: { x, y: y2 },
+    style: { color: 'rgba(78, 205, 196, 0.7)' }
+  });
+  
+  chart.addSeries({
+    id: 'Top (S3)',
+    type: 'area',
+    stackId,
+    data: { x, y: y3 },
+    style: { color: 'rgba(255, 230, 109, 0.7)' }
+  });
+  
+  // Ensure Y axis starts at 0 for stacked charts to show layers
+  chart.zoom({ y: [0, 40] });
+  
+  pointCount.value = n * 3;
+}
+
 function startRealtime() {
   isRunning.value = true
   dataRef = { x: new Float32Array(0), y: new Float32Array(0) }
@@ -917,7 +1003,7 @@ function resetDemo() {
 </script>
 
 <template>
-  <div class="chart-demo">
+  <div class="chart-demo" :class="{ dark: isDark }">
     <div class="chart-header">
       <div class="chart-stats">
         <span class="stat">
@@ -996,44 +1082,74 @@ function resetDemo() {
 }
 
 .btn {
-  padding: 6px 12px;
-  font-size: 13px;
+  padding: 4px 10px;
+  font-size: 11px;
   background: var(--vp-c-bg-soft);
   border: 1px solid var(--vp-c-divider);
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   color: var(--vp-c-text-1);
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   background: var(--vp-c-bg-mute);
   border-color: var(--vp-c-brand);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn-primary {
   background: var(--vp-c-brand);
-  color: white;
+  color: white !important;
   border-color: var(--vp-c-brand);
 }
 
-.btn-primary:hover {
-  background: var(--vp-c-brand-dark);
+.btn-primary:hover:not(:disabled) {
+  background: var(--vp-c-brand-dark) !important;
+  border-color: var(--vp-c-brand-dark);
 }
 
 .btn.select {
-  min-width: 80px;
+  min-width: 110px;
   -webkit-appearance: none;
+  -moz-appearance: none;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  padding-right: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 14px !important;
+  padding: 8px 36px 8px 16px;
+  outline: none;
 }
 
-.btn.select:disabled {
+.chart-demo.dark .btn.select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.btn.select option {
+  background-color: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+
+/* Ensure the dropdown list itself is styled on some browsers */
+.btn.select:focus {
+  border-color: var(--vp-c-brand);
+}
+
+.btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  filter: grayscale(0.5);
 }
 
 .chart-container {

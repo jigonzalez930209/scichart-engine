@@ -787,3 +787,77 @@ test(heatmap): add visual regression tests
 - [ ] Visual tests pass (if applicable)
 - [ ] Performance not regressed
 - [ ] Breaking changes documented
+---
+
+## 🎯 SPEC-006: Candlestick Series
+
+### Overview
+Visualización de OHLC (Open, High, Low, Close) para datos financieros.
+
+### API y Tipos
+
+```typescript
+interface SeriesData {
+  x: Float32Array;
+  open: Float32Array;
+  high: Float32Array;
+  low: Float32Array;
+  close: Float32Array;
+}
+
+interface CandlestickStyle {
+  bullishColor?: string; // Default: #26a69a (Green)
+  bearishColor?: string; // Default: #ef5350 (Red)
+  barWidth?: number;     // Relativo (0-1), Default: 0.8
+}
+```
+
+### Implementación Core
+Para maximizar el rendimiento, los candlesticks se renderizan particionando los datos en dos buffers durante la fase de `prepareSeriesData`:
+1. **Bullish Buffer**: Velas donde `close >= open`.
+2. **Bearish Buffer**: Velas donde `close < open`.
+
+Cada buffer se renderiza utilizando una variante del `BarRenderer` que dibuja tanto el cuerpo (rectángulo) como la mecha (una línea vertical que abarca de `high` a `low`).
+
+---
+
+## 🎯 SPEC-007: Plugin System
+
+### Overview
+Arquitectura de plugins basada en hooks para extender la funcionalidad del core sin acoplamiento.
+
+### Lifecycle Hooks
+
+```typescript
+interface ChartPlugin {
+  name: string;
+  init?(chart: Chart): void;
+  onBeforeRender?(chart: Chart): void;
+  onAfterRender?(chart: Chart, ctx: RenderContext): void;
+  onSeriesAdded?(series: Series): void;
+  destroy?(): void;
+}
+```
+
+### Integración en ChartCore
+El `PluginManager` se encarga de:
+1. Validar plugins durante el registro.
+2. Ejecutar hooks de forma segura (try-catch) para evitar que un plugin rompa el render loop principal.
+3. Coordinar la limpieza de recursos en el `destroy`.
+
+---
+
+## 🎯 SPEC-008: SVG Export Engine
+
+### Overview
+Motor de exportación de alta fidelidad que genera un string SVG representando el estado actual del chart.
+
+### Mapping de Elementos
+- **Axes/Grid**: `path` y `line` con coordenadas normalizadas al `viewBox` del SVG.
+- **Line Series**: Un solo elemento `path` con comandos `L` (LineTo).
+- **Scatter Series**: Elementos `circle` o `rect` individuales.
+- **Area/Band Series**: Elementos `path` cerrados con `fill-opacity`.
+- **Candlestick**: Combinación de `line` (mecha) y `rect` (cuerpo) agrupados con `<g>`.
+
+### Optimización
+Para series de gran volumen (>10k puntos), el exportador aplica un downsampling visual previo para evitar generar archivos SVG de tamaño excesivo que comprometan el rendimiento del navegador al visualizarlos.

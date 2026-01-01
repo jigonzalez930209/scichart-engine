@@ -137,6 +137,21 @@ import { SciChart } from 'scichart-engine/react'
 />
 ```
 
+## GPU Rendering
+
+Advanced GPU features for maximum performance.
+
+| Example | Description | Key Feature |
+|---------|-------------|-------------|
+| [WebGPU Overview](/examples/webgpu) | Next-gen GPU rendering | WebGPU API |
+| [GPU Benchmark](/examples/benchmark) | Performance comparison | WebGPU vs WebGL |
+| [GPU Compute](/examples/gpu-compute) | GPU-accelerated analysis | Compute shaders |
+| [WebGPU vs WebGL](/examples/gpu-comparison) | Side-by-side comparison | Interactive demo |
+
+::: tip WebGPU
+WebGPU offers up to 3-10x better performance for large datasets (1M+ points) and supports compute shaders for GPU-accelerated analysis.
+:::
+
 ## Live Standalone Examples
 
 These examples are available when running the development server:

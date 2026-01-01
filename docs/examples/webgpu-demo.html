@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebGPU Chart Demo | SciChart Engine</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%);
+      min-height: 100vh;
+      color: #e0e0e0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(90deg, #00d4ff 0%, #7b2cbf 50%, #ff0055 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 1.1rem;
+      margin-bottom: 30px;
+    }
+
+    .status {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .status-dot.success {
+      background: #00ff88;
+      box-shadow: 0 0 8px #00ff88;
+    }
+
+    .status-dot.error {
+      background: #ff4444;
+      box-shadow: 0 0 8px #ff4444;
+    }
+
+    .status-dot.pending {
+      background: #ffaa00;
+      box-shadow: 0 0 8px #ffaa00;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 24px;
+    }
+
+    .chart-card {
+      background: rgba(20, 20, 30, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .chart-title {
+      font-size: 1.2rem;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    .chart-container {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #0a0a10;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .chart-container canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #00d4ff20, #7b2cbf20);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-radius: 8px;
+      color: #00d4ff;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #00d4ff30, #7b2cbf30);
+      border-color: rgba(0, 212, 255, 0.5);
+      transform: translateY(-1px);
+    }
+
+    button.active {
+      background: linear-gradient(135deg, #00d4ff40, #7b2cbf40);
+      border-color: #00d4ff;
+    }
+
+    .fallback-message {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #ff6666;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .info-panel {
+      margin-top: 30px;
+      padding: 20px;
+      background: rgba(0, 212, 255, 0.05);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 12px;
+    }
+
+    .info-panel h3 {
+      color: #00d4ff;
+      margin-bottom: 12px;
+    }
+
+    .info-panel ul {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 8px;
+    }
+
+    .info-panel li {
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .info-panel li strong {
+      color: #00d4ff;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>🚀 WebGPU Chart Demo</h1>
+    <p class="subtitle">SciChart Engine GPU Abstraction Layer</p>
+
+    <div class="status">
+      <div class="status-item">
+        <span class="status-dot pending" id="webgpu-status"></span>
+        <span id="webgpu-text">Checking WebGPU...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-dot pending" id="render-status"></span>
+        <span id="render-text">Initializing...</span>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <!-- Triangle Demo -->
+      <div class="chart-card">
+        <h2 class="chart-title">🔺 Basic Triangles</h2>
+        <div class="chart-container" id="triangle-container"></div>
+        <div class="controls">
+          <button onclick="toggleAnimation('triangle')">Toggle Animation</button>
+        </div>
+      </div>
+
+      <!-- Line Chart Demo -->
+      <div class="chart-card">
+        <h2 class="chart-title">📈 Line Chart</h2>
+        <div class="chart-container" id="line-container"></div>
+        <div class="controls">
+          <button onclick="toggleAnimation('line')">Toggle Animation</button>
+          <button onclick="regenerateData('line')">Regenerate Data</button>
+        </div>
+      </div>
+
+      <!-- Scatter Demo -->
+      <div class="chart-card">
+        <h2 class="chart-title">🔵 Scatter Plot</h2>
+        <div class="chart-container" id="scatter-container"></div>
+        <div class="controls">
+          <button onclick="cycleSymbol()">Cycle Symbol</button>
+          <button onclick="regenerateData('scatter')">Regenerate Data</button>
+        </div>
+      </div>
+
+      <!-- Multi-Series Demo -->
+      <div class="chart-card">
+        <h2 class="chart-title">📊 Multi-Series</h2>
+        <div class="chart-container" id="multi-container"></div>
+        <div class="controls">
+          <button onclick="toggleSeries('band')">Toggle Band</button>
+          <button onclick="toggleSeries('line')">Toggle Line</button>
+          <button onclick="toggleSeries('scatter')">Toggle Points</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-panel">
+      <h3>📋 GPU Information</h3>
+      <ul id="gpu-info">
+        <li>Loading...</li>
+      </ul>
+    </div>
+  </div>
+
+  <script type="module">
+    // Import from bundled version (adjust path as needed)
+    // For development, we'll implement inline
+
+    // ============================================
+    // WebGPU Detection
+    // ============================================
+
+    function updateStatus(id, status, text) {
+      const dot = document.getElementById(`${id}-status`);
+      const textEl = document.getElementById(`${id}-text`);
+
+      dot.className = `status-dot ${status}`;
+      textEl.textContent = text;
+    }
+
+    async function checkWebGPU() {
+      if (!navigator.gpu) {
+        updateStatus('webgpu', 'error', 'WebGPU not supported');
+        return null;
+      }
+
+      try {
+        const adapter = await navigator.gpu.requestAdapter({
+          powerPreference: 'high-performance'
+        });
+
+        if (!adapter) {
+          updateStatus('webgpu', 'error', 'No adapter found');
+          return null;
+        }
+
+        const device = await adapter.requestDevice();
+
+        // Try to get adapter info (may not be available in all browsers)
+        let info = {};
+        try {
+          if (adapter.requestAdapterInfo) {
+            info = await adapter.requestAdapterInfo();
+          }
+        } catch (e) {
+          // Ignore - info is optional
+        }
+
+        updateStatus('webgpu', 'success', `WebGPU: ${info.vendor || 'Available'}`);
+
+        // Update GPU info panel
+        const gpuInfoEl = document.getElementById('gpu-info');
+        gpuInfoEl.innerHTML = `
+          <li><strong>Vendor:</strong> ${info.vendor || 'Unknown'}</li>
+          <li><strong>Architecture:</strong> ${info.architecture || 'Unknown'}</li>
+          <li><strong>Device:</strong> ${info.device || 'Unknown'}</li>
+          <li><strong>Description:</strong> ${info.description || 'N/A'}</li>
+          <li><strong>Max Buffer Size:</strong> ${(device.limits.maxBufferSize / 1024 / 1024).toFixed(0)} MB</li>
+          <li><strong>Max Texture Size:</strong> ${device.limits.maxTextureDimension2D}x${device.limits.maxTextureDimension2D}</li>
+        `;
+
+        return { adapter, device };
+      } catch (e) {
+        updateStatus('webgpu', 'error', `WebGPU Error: ${e.message}`);
+        return null;
+      }
+    }
+
+    // ============================================
+    // Shader Code
+    // ============================================
+
+    const LINE_SHADER = `
+      struct Uniforms {
+        scale: vec2<f32>,
+        translate: vec2<f32>,
+        color: vec4<f32>,
+      };
+      
+      @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+      
+      @vertex
+      fn vs_main(@location(0) position: vec2<f32>) -> @builtin(position) vec4<f32> {
+        let pos = position * uniforms.scale + uniforms.translate;
+        return vec4<f32>(pos, 0.0, 1.0);
+      }
+      
+      @fragment
+      fn fs_main() -> @location(0) vec4<f32> {
+        return uniforms.color;
+      }
+    `;
+
+    const TRIANGLE_SHADER = `
+      struct VSOut {
+        @builtin(position) pos: vec4<f32>,
+        @location(0) color: vec4<f32>,
+      };
+      
+      @vertex
+      fn vs_main(
+        @location(0) position: vec2<f32>,
+        @location(1) color: vec4<f32>
+      ) -> VSOut {
+        var out: VSOut;
+        out.pos = vec4<f32>(position, 0.0, 1.0);
+        out.color = color;
+        return out;
+      }
+      
+      @fragment
+      fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
+        return in.color;
+      }
+    `;
+
+    // ============================================
+    // Demo State
+    // ============================================
+
+    const demos = {};
+    let scatterSymbol = 0;
+    const symbols = ['circle', 'square', 'diamond', 'triangle', 'star'];
+
+    // ============================================
+    // Initialize Demos
+    // ============================================
+
+    async function initDemos() {
+      const gpu = await checkWebGPU();
+
+      if (!gpu) {
+        // Show fallback for all containers
+        document.querySelectorAll('.chart-container').forEach(container => {
+          container.innerHTML = '<div class="fallback-message">WebGPU is not available in your browser. Try Chrome 113+ or Edge 113+.</div>';
+        });
+        updateStatus('render', 'error', 'Cannot render');
+        return;
+      }
+
+      try {
+        await initTriangleDemo(gpu);
+        await initLineDemo(gpu);
+        await initScatterDemo(gpu);
+        await initMultiDemo(gpu);
+
+        updateStatus('render', 'success', 'All demos running');
+      } catch (e) {
+        console.error('Demo init error:', e);
+        updateStatus('render', 'error', `Error: ${e.message}`);
+      }
+    }
+
+    // ============================================
+    // Triangle Demo
+    // ============================================
+
+    async function initTriangleDemo(gpu) {
+      const container = document.getElementById('triangle-container');
+      const canvas = document.createElement('canvas');
+      container.appendChild(canvas);
+
+      const rect = container.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const context = canvas.getContext('webgpu');
+      const format = navigator.gpu.getPreferredCanvasFormat();
+
+      const device = await gpu.adapter.requestDevice();
+      context.configure({ device, format, alphaMode: 'premultiplied' });
+
+      const module = device.createShaderModule({ code: TRIANGLE_SHADER });
+
+      const pipeline = device.createRenderPipeline({
+        layout: 'auto',
+        vertex: {
+          module,
+          entryPoint: 'vs_main',
+          buffers: [{
+            arrayStride: 24,
+            attributes: [
+              { shaderLocation: 0, offset: 0, format: 'float32x2' },
+              { shaderLocation: 1, offset: 8, format: 'float32x4' },
+            ],
+          }],
+        },
+        fragment: {
+          module,
+          entryPoint: 'fs_main',
+          targets: [{ format }],
+        },
+        primitive: { topology: 'triangle-list' },
+      });
+
+      let angle = 0;
+      let animating = true;
+
+      function render() {
+        if (!animating) {
+          demos.triangle.raf = requestAnimationFrame(render);
+          return;
+        }
+
+        angle += 0.02;
+
+        const vertices = new Float32Array([
+          // Position         // Color (RGBA)
+          Math.cos(angle) * 0.5, Math.sin(angle) * 0.5, 1, 0, 0.5, 1,
+          Math.cos(angle + 2.094) * 0.5, Math.sin(angle + 2.094) * 0.5, 0, 1, 0.5, 1,
+          Math.cos(angle + 4.189) * 0.5, Math.sin(angle + 4.189) * 0.5, 0, 0.5, 1, 1,
+        ]);
+
+        const buffer = device.createBuffer({
+          size: vertices.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(buffer, 0, vertices);
+
+        const encoder = device.createCommandEncoder();
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [{
+            view: context.getCurrentTexture().createView(),
+            clearValue: { r: 0.05, g: 0.05, b: 0.08, a: 1 },
+            loadOp: 'clear',
+            storeOp: 'store',
+          }],
+        });
+
+        pass.setPipeline(pipeline);
+        pass.setVertexBuffer(0, buffer);
+        pass.draw(3);
+        pass.end();
+
+        device.queue.submit([encoder.finish()]);
+        buffer.destroy();
+
+        demos.triangle.raf = requestAnimationFrame(render);
+      }
+
+      demos.triangle = { animating, raf: requestAnimationFrame(render) };
+    }
+
+    // ============================================
+    // Line Demo
+    // ============================================
+
+    async function initLineDemo(gpu) {
+      const container = document.getElementById('line-container');
+      const canvas = document.createElement('canvas');
+      container.appendChild(canvas);
+
+      const rect = container.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const device = await gpu.adapter.requestDevice();
+      const context = canvas.getContext('webgpu');
+      const format = navigator.gpu.getPreferredCanvasFormat();
+      context.configure({ device, format, alphaMode: 'premultiplied' });
+
+      const module = device.createShaderModule({ code: LINE_SHADER });
+
+      const bindGroupLayout = device.createBindGroupLayout({
+        entries: [{
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { type: 'uniform' },
+        }],
+      });
+
+      const uniformBuffer = device.createBuffer({
+        size: 32,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      });
+
+      const bindGroup = device.createBindGroup({
+        layout: bindGroupLayout,
+        entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+      });
+
+      const pipeline = device.createRenderPipeline({
+        layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+        vertex: {
+          module,
+          entryPoint: 'vs_main',
+          buffers: [{
+            arrayStride: 8,
+            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }],
+          }],
+        },
+        fragment: {
+          module,
+          entryPoint: 'fs_main',
+          targets: [{
+            format,
+            blend: {
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+            },
+          }],
+        },
+        primitive: { topology: 'line-strip' },
+      });
+
+      let dataBuffer = null;
+      let pointCount = 0;
+      let phase = 0;
+      let animating = true;
+
+      function generateData() {
+        const numPoints = 200;
+        const data = new Float32Array(numPoints * 2);
+        for (let i = 0; i < numPoints; i++) {
+          data[i * 2] = i / (numPoints - 1);
+          data[i * 2 + 1] = 0.5 + Math.sin(i * 0.05 + phase) * 0.3 + Math.sin(i * 0.02) * 0.1;
+        }
+
+        if (dataBuffer) dataBuffer.destroy();
+        dataBuffer = device.createBuffer({
+          size: data.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(dataBuffer, 0, data);
+        pointCount = numPoints;
+      }
+
+      generateData();
+
+      function render() {
+        if (animating) {
+          phase += 0.05;
+          generateData();
+        }
+
+        // Update uniforms: scale, translate, color
+        const uniforms = new Float32Array([
+          2, 2,           // scale
+          -1, -1,         // translate
+          0, 0.9, 1, 1,   // color (cyan)
+        ]);
+        device.queue.writeBuffer(uniformBuffer, 0, uniforms);
+
+        const encoder = device.createCommandEncoder();
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [{
+            view: context.getCurrentTexture().createView(),
+            clearValue: { r: 0.05, g: 0.05, b: 0.08, a: 1 },
+            loadOp: 'clear',
+            storeOp: 'store',
+          }],
+        });
+
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, bindGroup);
+        pass.setVertexBuffer(0, dataBuffer);
+        pass.draw(pointCount);
+        pass.end();
+
+        device.queue.submit([encoder.finish()]);
+
+        demos.line.raf = requestAnimationFrame(render);
+      }
+
+      demos.line = {
+        animating,
+        raf: requestAnimationFrame(render),
+        regenerate: generateData,
+      };
+    }
+
+    // ============================================
+    // Scatter Demo (simplified)
+    // ============================================
+
+    async function initScatterDemo(gpu) {
+      const container = document.getElementById('scatter-container');
+      const canvas = document.createElement('canvas');
+      container.appendChild(canvas);
+
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width * (window.devicePixelRatio || 1);
+      canvas.height = rect.height * (window.devicePixelRatio || 1);
+
+      const device = await gpu.adapter.requestDevice();
+      const context = canvas.getContext('webgpu');
+      const format = navigator.gpu.getPreferredCanvasFormat();
+      context.configure({ device, format, alphaMode: 'premultiplied' });
+
+      // Use triangle shader for points rendered as quads
+      const module = device.createShaderModule({ code: TRIANGLE_SHADER });
+
+      const pipeline = device.createRenderPipeline({
+        layout: 'auto',
+        vertex: {
+          module,
+          entryPoint: 'vs_main',
+          buffers: [{
+            arrayStride: 24,
+            attributes: [
+              { shaderLocation: 0, offset: 0, format: 'float32x2' },
+              { shaderLocation: 1, offset: 8, format: 'float32x4' },
+            ],
+          }],
+        },
+        fragment: {
+          module,
+          entryPoint: 'fs_main',
+          targets: [{
+            format,
+            blend: {
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+            },
+          }],
+        },
+        primitive: { topology: 'triangle-list' },
+      });
+
+      let dataBuffer = null;
+      let vertexCount = 0;
+
+      function generateData() {
+        const numPoints = 100;
+        const pointSize = 0.03;
+        const vertices = [];
+
+        for (let i = 0; i < numPoints; i++) {
+          const x = Math.random() * 1.6 - 0.8;
+          const y = Math.random() * 1.6 - 0.8;
+          const r = Math.random() * 0.5 + 0.5;
+          const g = Math.random() * 0.5;
+          const b = Math.random() * 0.5 + 0.5;
+
+          // Two triangles forming a quad
+          vertices.push(
+            x - pointSize, y - pointSize, r, g, b, 1,
+            x + pointSize, y - pointSize, r, g, b, 1,
+            x - pointSize, y + pointSize, r, g, b, 1,
+            x - pointSize, y + pointSize, r, g, b, 1,
+            x + pointSize, y - pointSize, r, g, b, 1,
+            x + pointSize, y + pointSize, r, g, b, 1,
+          );
+        }
+
+        const data = new Float32Array(vertices);
+        if (dataBuffer) dataBuffer.destroy();
+        dataBuffer = device.createBuffer({
+          size: data.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(dataBuffer, 0, data);
+        vertexCount = vertices.length / 6;
+      }
+
+      generateData();
+
+      function render() {
+        const encoder = device.createCommandEncoder();
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [{
+            view: context.getCurrentTexture().createView(),
+            clearValue: { r: 0.05, g: 0.05, b: 0.08, a: 1 },
+            loadOp: 'clear',
+            storeOp: 'store',
+          }],
+        });
+
+        pass.setPipeline(pipeline);
+        pass.setVertexBuffer(0, dataBuffer);
+        pass.draw(vertexCount);
+        pass.end();
+
+        device.queue.submit([encoder.finish()]);
+
+        demos.scatter.raf = requestAnimationFrame(render);
+      }
+
+      demos.scatter = {
+        raf: requestAnimationFrame(render),
+        regenerate: generateData,
+      };
+    }
+
+    // ============================================
+    // Multi-Series Demo
+    // ============================================
+
+    async function initMultiDemo(gpu) {
+      const container = document.getElementById('multi-container');
+      const canvas = document.createElement('canvas');
+      container.appendChild(canvas);
+
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width * (window.devicePixelRatio || 1);
+      canvas.height = rect.height * (window.devicePixelRatio || 1);
+
+      const device = await gpu.adapter.requestDevice();
+      const context = canvas.getContext('webgpu');
+      const format = navigator.gpu.getPreferredCanvasFormat();
+      context.configure({ device, format, alphaMode: 'premultiplied' });
+
+      const module = device.createShaderModule({ code: LINE_SHADER });
+
+      const bindGroupLayout = device.createBindGroupLayout({
+        entries: [{
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { type: 'uniform' },
+        }],
+      });
+
+      const uniformBuffer = device.createBuffer({
+        size: 32,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      });
+
+      const bindGroup = device.createBindGroup({
+        layout: bindGroupLayout,
+        entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+      });
+
+      const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
+
+      const linePipeline = device.createRenderPipeline({
+        layout: pipelineLayout,
+        vertex: {
+          module,
+          entryPoint: 'vs_main',
+          buffers: [{
+            arrayStride: 8,
+            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }],
+          }],
+        },
+        fragment: {
+          module,
+          entryPoint: 'fs_main',
+          targets: [{
+            format,
+            blend: {
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+            },
+          }],
+        },
+        primitive: { topology: 'line-strip' },
+      });
+
+      const bandPipeline = device.createRenderPipeline({
+        layout: pipelineLayout,
+        vertex: {
+          module,
+          entryPoint: 'vs_main',
+          buffers: [{
+            arrayStride: 8,
+            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }],
+          }],
+        },
+        fragment: {
+          module,
+          entryPoint: 'fs_main',
+          targets: [{
+            format,
+            blend: {
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+            },
+          }],
+        },
+        primitive: { topology: 'triangle-strip' },
+      });
+
+      // Generate data
+      const numPoints = 100;
+      const lineData = new Float32Array(numPoints * 2);
+      const bandData = new Float32Array(numPoints * 4);
+
+      for (let i = 0; i < numPoints; i++) {
+        const x = i / (numPoints - 1);
+        const y = 0.5 + Math.sin(x * 6) * 0.25;
+        lineData[i * 2] = x;
+        lineData[i * 2 + 1] = y;
+
+        bandData[i * 4] = x;
+        bandData[i * 4 + 1] = y - 0.1;
+        bandData[i * 4 + 2] = x;
+        bandData[i * 4 + 3] = y + 0.1;
+      }
+
+      const lineBuffer = device.createBuffer({
+        size: lineData.byteLength,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      });
+      device.queue.writeBuffer(lineBuffer, 0, lineData);
+
+      const bandBuffer = device.createBuffer({
+        size: bandData.byteLength,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      });
+      device.queue.writeBuffer(bandBuffer, 0, bandData);
+
+      let showBand = true;
+      let showLine = true;
+      let showScatter = true;
+
+      function render() {
+        const encoder = device.createCommandEncoder();
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [{
+            view: context.getCurrentTexture().createView(),
+            clearValue: { r: 0.05, g: 0.05, b: 0.08, a: 1 },
+            loadOp: 'clear',
+            storeOp: 'store',
+          }],
+        });
+
+        // Draw band
+        if (showBand) {
+          const bandUniforms = new Float32Array([2, 2, -1, -1, 0.2, 0.5, 1, 0.3]);
+          device.queue.writeBuffer(uniformBuffer, 0, bandUniforms);
+          pass.setPipeline(bandPipeline);
+          pass.setBindGroup(0, bindGroup);
+          pass.setVertexBuffer(0, bandBuffer);
+          pass.draw(numPoints * 2);
+        }
+
+        // Draw line
+        if (showLine) {
+          const lineUniforms = new Float32Array([2, 2, -1, -1, 0, 0.9, 1, 1]);
+          device.queue.writeBuffer(uniformBuffer, 0, lineUniforms);
+          pass.setPipeline(linePipeline);
+          pass.setBindGroup(0, bindGroup);
+          pass.setVertexBuffer(0, lineBuffer);
+          pass.draw(numPoints);
+        }
+
+        pass.end();
+        device.queue.submit([encoder.finish()]);
+
+        demos.multi.raf = requestAnimationFrame(render);
+      }
+
+      demos.multi = {
+        raf: requestAnimationFrame(render),
+        toggleBand: () => { showBand = !showBand; },
+        toggleLine: () => { showLine = !showLine; },
+        toggleScatter: () => { showScatter = !showScatter; },
+      };
+    }
+
+    // ============================================
+    // Control Functions
+    // ============================================
+
+    window.toggleAnimation = function (demoId) {
+      if (demos[demoId]) {
+        demos[demoId].animating = !demos[demoId].animating;
+      }
+    };
+
+    window.regenerateData = function (demoId) {
+      if (demos[demoId] && demos[demoId].regenerate) {
+        demos[demoId].regenerate();
+      }
+    };
+
+    window.cycleSymbol = function () {
+      scatterSymbol = (scatterSymbol + 1) % symbols.length;
+      // Note: Symbol cycling would require shader changes
+    };
+
+    window.toggleSeries = function (seriesId) {
+      if (demos.multi) {
+        if (seriesId === 'band') demos.multi.toggleBand();
+        if (seriesId === 'line') demos.multi.toggleLine();
+        if (seriesId === 'scatter') demos.multi.toggleScatter();
+      }
+    };
+
+    // ============================================
+    // Initialize
+    // ============================================
+
+    initDemos();
+  </script>
+</body>
+
+</html>

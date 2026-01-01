@@ -66,6 +66,7 @@ export default defineConfig({
             { text: "Performance", link: "/guide/performance" },
             { text: "Real-time Data", link: "/guide/realtime" },
             { text: "Large Datasets", link: "/guide/large-datasets" },
+            { text: "Plugin System", link: "/guide/plugins" },
           ],
         },
       ],
@@ -81,8 +82,10 @@ export default defineConfig({
             { text: "Scatter Symbols", link: "/api/scatter-symbols" },
             { text: "Bar Charts", link: "/api/bar-charts" },
             { text: "Heatmaps", link: "/api/heatmap" },
+            { text: "Candlestick", link: "/api/candlestick" },
             { text: "Error Bars", link: "/api/error-bars" },
             { text: "Annotations", link: "/api/annotations" },
+            { text: "Plugins", link: "/api/plugins" },
             { text: "Statistics Panel", link: "/api/statistics-panel" },
             { text: "Data Export", link: "/api/export" },
             { text: "Events", link: "/api/events" },
@@ -132,8 +135,25 @@ export default defineConfig({
             { text: "Peak Analysis", link: "/examples/analysis" },
             { text: "Bar Charts", link: "/examples/bar-charts" },
             { text: "Heatmaps", link: "/examples/heatmap" },
+            { text: "Candlestick", link: "/examples/candlestick" },
+            { text: "Stacked Charts", link: "/examples/stacked-charts" },
+            { text: "Statistics Panel", link: "/examples/statistics" },
           ],
         },
+        // =================================================================
+        // GPU Rendering - IN DEVELOPMENT (no testing)
+        // Uncomment when ready for production
+        // =================================================================
+        // {
+        //   text: "GPU Rendering",
+        //   items: [
+        //     { text: "WebGPU Overview", link: "/examples/webgpu" },
+        //     { text: "GPU Showcase", link: "/examples/gpu-showcase" },
+        //     { text: "GPU Benchmark", link: "/demos/benchmark.html" },
+        //     { text: "GPU Compute", link: "/examples/gpu-compute" },
+        //     { text: "WebGPU vs WebGL", link: "/examples/gpu-comparison" },
+        //   ],
+        // },
       ],
     },
     socialLinks: [
