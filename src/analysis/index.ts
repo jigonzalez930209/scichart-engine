@@ -45,3 +45,5 @@ export type {
   FitOptions,
   FitResult,
 } from './fitting';
+
+export * from './contours';
