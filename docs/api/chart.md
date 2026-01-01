@@ -41,13 +41,13 @@ Returns a `Chart` instance with the following methods:
 ### Series Management
 
 ```typescript
-// Add a new series
 chart.addSeries({
   id: 'my-series',
-  type: 'line',           // 'line' | 'scatter' | 'both'
+  type: 'line',           // 'line' | 'scatter' | 'both' | 'candlestick' | 'step' | 'area' | 'band'
   data: { x, y },         // Float32Array or Float64Array
   style: { color: '#00f2ff', width: 2 },
 })
+
 
 // Update series data
 chart.updateSeries('my-series', { x: newX, y: newY })
@@ -132,6 +132,12 @@ chart.render()
 
 // Export as image
 const dataUrl = chart.exportImage('png')  // or 'jpeg'
+
+// Export as SVG string
+const svg = chart.exportSVG()
+
+// Use a plugin
+chart.use(myPlugin)
 
 // Clean up when done
 chart.destroy()

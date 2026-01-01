@@ -99,6 +99,49 @@ chart.addHeatmap({
 })
 ```
 
+### Candlestick Series
+
+```typescript
+chart.addSeries({
+  id: 'stock-price',
+  type: 'candlestick',
+  data: {
+    x: timestamps,
+    open: openValues,
+    high: highValues,
+    low: lowValues,
+    close: closeValues,
+  },
+  style: {
+    bullishColor: '#26a69a', // Green
+    bearishColor: '#ef5350', // Red
+    barWidth: 0.8
+  }
+})
+```
+
+### Stacked Series
+
+Group multiple series together by using the same `stackId`. They will be rendered on top of each other.
+
+```typescript
+chart.addSeries({
+  id: 'layer-1',
+  type: 'area', // Usually stacked as area/band
+  stackId: 'my-group',
+  data: { x, y: y1 },
+  style: { color: '#ff6b6b' }
+})
+
+chart.addSeries({
+  id: 'layer-2',
+  type: 'area',
+  stackId: 'my-group',
+  data: { x, y: y2 },
+  style: { color: '#4ecdc4' }
+})
+```
+
 ## Data Requirements
 
 ::: warning TypedArrays Required
@@ -218,6 +261,13 @@ chart.removeSeries('temperature')
 const series = chart.getSeries('temperature')
 series.setVisible(false)  // Hide
 series.setVisible(true)   // Show
+```
+
+### Change Type Dynamically
+
+```typescript
+const series = chart.getSeries('data')
+series.setType('scatter') // Switch from line to scatter
 ```
 
 ### Update Style

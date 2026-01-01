@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU 100M Points Demo</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a12;
+            --bg-secondary: #12121f;
+            --bg-card: #1a1a2e;
+            --bg-elevated: #22223a;
+            --accent-cyan: #00d4ff;
+            --accent-magenta: #ff4088;
+            --accent-green: #00ff88;
+            --accent-orange: #ffaa00;
+            --accent-purple: #a855f7;
+            --accent-red: #ff4444;
+            --text-primary: #ffffff;
+            --text-secondary: #888899;
+            --border: #2a2a4a;
+            --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.4);
+            --glow-green: 0 0 20px rgba(0, 255, 136, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            height: 100vh;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-card);
+            padding: 0.5rem 1rem;
+            border-radius: 99px;
+            font-size: 0.85rem;
+            border: 1px solid var(--border);
+        }
+
+        .header-badge.active {
+            border-color: var(--accent-green);
+            box-shadow: var(--glow-green);
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            position: relative;
+            min-height: 400px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #030308;
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+        }
+
+        .overlay-stat {
+            background: rgba(10, 10, 18, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            gap: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .overlay-stat .label {
+            color: var(--text-secondary);
+        }
+
+        .overlay-stat .value {
+            font-weight: 600;
+        }
+
+        .overlay-stat .value.cyan {
+            color: var(--accent-cyan);
+        }
+
+        .overlay-stat .value.green {
+            color: var(--accent-green);
+        }
+
+        .overlay-stat .value.orange {
+            color: var(--accent-orange);
+        }
+
+        .overlay-stat .value.purple {
+            color: var(--accent-purple);
+        }
+
+        .progress-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 10, 18, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            text-align: center;
+            min-width: 300px;
+        }
+
+        .progress-overlay.hidden {
+            display: none;
+        }
+
+        .progress-overlay h3 {
+            margin-bottom: 1rem;
+            color: var(--accent-cyan);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-card);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-phase {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-title .icon {
+            font-size: 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 0.5rem;
+            background: var(--bg-elevated);
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+        }
+
+        .stat-item.highlight .stat-value {
+            color: var(--accent-green);
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .preset-grid {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .preset-btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .preset-btn.active {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.15);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .preset-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .preset-btn .memory {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .preset-btn.warning .memory {
+            color: var(--accent-orange);
+        }
+
+        .preset-btn.danger .memory {
+            color: var(--accent-red);
+        }
+
+        .lod-selector {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .lod-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lod-btn:hover {
+            border-color: var(--accent-purple);
+        }
+
+        .lod-btn.active {
+            border-color: var(--accent-purple);
+            background: rgba(168, 85, 247, 0.2);
+            color: var(--text-primary);
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .control-btn {
+            flex: 1;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(135deg, var(--accent-cyan), #0099cc);
+            color: white;
+        }
+
+        .control-btn.secondary {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .log-area {
+            flex: 1;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            overflow-y: auto;
+            max-height: 150px;
+        }
+
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid rgba(42, 42, 74, 0.5);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            min-width: 55px;
+        }
+
+        .log-msg.info {
+            color: var(--accent-cyan);
+        }
+
+        .log-msg.success {
+            color: var(--accent-green);
+        }
+
+        .log-msg.warn {
+            color: var(--accent-orange);
+        }
+
+        .log-msg.error {
+            color: var(--accent-red);
+        }
+
+        .log-msg.data {
+            color: var(--accent-purple);
+        }
+
+        .gpu-info {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .gpu-info strong {
+            color: var(--text-primary);
+        }
+
+        .tips {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            padding-left: 1rem;
+        }
+
+        .tips li {
+            margin-bottom: 0.25rem;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .animating .stat-value {
+            animation: pulse 1s infinite;
+        }
+
+        @media (max-width: 900px) {
+            .app {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+
+            .sidebar {
+                border-left: none;
+                border-top: 1px solid var(--border);
+                max-height: 50vh;
+            }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app">
+        <div class="main-content">
+            <header>
+                <h1>🚀 WebGPU 100M Points</h1>
+                <div class="header-badge" id="webgpu-badge">
+                    <span id="webgpu-status">⏳</span>
+                    <span id="webgpu-label">Checking...</span>
+                </div>
+            </header>
+
+            <div class="canvas-wrapper">
+                <canvas id="canvas"></canvas>
+
+                <div class="canvas-overlay">
+                    <div class="overlay-stat">
+                        <span class="label">FPS:</span>
+                        <span class="value green" id="overlay-fps">--</span>
+                    </div>
+                    <div class="overlay-stat">
+                        <span class="label">Rendered:</span>
+                        <span class="value cyan" id="overlay-points">--</span>
+                    </div>
+                    <div class="overlay-stat">
+                        <span class="label">LOD:</span>
+                        <span class="value purple" id="overlay-lod">--</span>
+                    </div>
+                    <div class="overlay-stat">
+                        <span class="label">Frame:</span>
+                        <span class="value orange" id="overlay-frame">--</span>
+                    </div>
+                </div>
+
+                <div class="progress-overlay" id="progress-overlay">
+                    <h3>⏳ Loading Data</h3>
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-phase" id="progress-phase">Initializing...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="card">
+                <div class="card-title"><span class="icon">📊</span> Data Size</div>
+                <div class="preset-grid">
+                    <button class="preset-btn" onclick="loadData(1000000)">
+                        <span>1 Million</span><span class="memory">8 MB</span>
+                    </button>
+                    <button class="preset-btn" onclick="loadData(10000000)">
+                        <span>10 Million</span><span class="memory">80 MB</span>
+                    </button>
+                    <button class="preset-btn warning" onclick="loadData(50000000)">
+                        <span>50 Million</span><span class="memory">400 MB</span>
+                    </button>
+                    <button class="preset-btn danger" onclick="loadData(100000000)">
+                        <span>🔥 100 Million</span><span class="memory">800 MB</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">📈</span> Live Stats</div>
+                <div class="stats-grid" id="stats-grid">
+                    <div class="stat-item highlight">
+                        <div class="stat-value" id="stat-fps">--</div>
+                        <div class="stat-label">FPS</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-frame">--</div>
+                        <div class="stat-label">Frame ms</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-total">--</div>
+                        <div class="stat-label">Total Pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-rendered">--</div>
+                        <div class="stat-label">Rendered</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-memory">--</div>
+                        <div class="stat-label">Buffer MB</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-batches">--</div>
+                        <div class="stat-label">Batches</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">🔍</span> Level of Detail</div>
+                <div class="lod-selector" id="lod-selector">
+                    <button class="lod-btn active" data-lod="0">Full</button>
+                    <button class="lod-btn" data-lod="1">10x</button>
+                    <button class="lod-btn" data-lod="2">100x</button>
+                    <button class="lod-btn" data-lod="3">1000x</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">🎮</span> Controls</div>
+                <div class="controls-row">
+                    <button class="control-btn primary" id="btn-animate" onclick="toggleAnimate()">▶ Animate</button>
+                    <button class="control-btn secondary" onclick="resetView()">↻ Reset</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">🖥️</span> GPU Info</div>
+                <div class="gpu-info" id="gpu-info">Detecting GPU...</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">📋</span> Log</div>
+                <div class="log-area" id="log"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">💡</span> Tips</div>
+                <ul class="tips">
+                    <li>Use LOD buttons to switch detail levels</li>
+                    <li>Lower LOD = more FPS for overview</li>
+                    <li>Animation runs entirely on GPU</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Simple LINE-STRIP shader (proven to work in the test)
+        const SHADER = `
+            struct Uniforms {
+                scale: vec2<f32>,
+                translate: vec2<f32>,
+                color: vec4<f32>,
+                time: f32,
+                amplitude: f32,
+                frequency: f32,
+                _pad: f32,
+            };
+            
+            @group(0) @binding(0) var<uniform> u: Uniforms;
+            
+            @vertex
+            fn vs_main(@location(0) pos: vec2<f32>) -> @builtin(position) vec4<f32> {
+                let animatedY = pos.y + sin(pos.x * u.frequency + u.time) * u.amplitude;
+                let transformed = vec2<f32>(pos.x, animatedY) * u.scale + u.translate;
+                return vec4<f32>(transformed, 0.0, 1.0);
+            }
+            
+            @fragment
+            fn fs_main() -> @location(0) vec4<f32> {
+                return u.color;
+            }
+        `;
+
+        // Global state
+        let device, context, format, pipeline, uniformBuffer, bindGroup;
+        let vertexBuffer = null;
+        let totalPoints = 0;
+        let animating = false;
+        let rafId = null;
+        let time = 0;
+        let currentLOD = 0;
+        let lodBuffers = [];
+        let maxBufferSize = 0;
+        let frameCount = 0;
+        let lastFpsTime = performance.now();
+        let currentFps = 0;
+        let lastFrameTime = 0;
+
+        const BATCH_SIZE = 5_000_000;
+        const CHUNK_SIZE = 64 * 1024 * 1024;
+
+        const canvas = document.getElementById('canvas');
+        const logEl = document.getElementById('log');
+        const progressOverlay = document.getElementById('progress-overlay');
+        const progressFill = document.getElementById('progress-fill');
+        const progressPhase = document.getElementById('progress-phase');
+        const lodSelector = document.getElementById('lod-selector');
+        const statsGrid = document.getElementById('stats-grid');
+
+        function log(type, msg) {
+            const t = new Date().toISOString().split('T')[1].split('.')[0];
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+            logEl.insertBefore(entry, logEl.firstChild);
+            if (logEl.children.length > 30) logEl.removeChild(logEl.lastChild);
+        }
+
+        function formatNumber(n) {
+            if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+            if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+            if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+            return n.toString();
+        }
+
+        function showProgress(show) { progressOverlay.classList.toggle('hidden', !show); }
+        function updateProgress(phase, pct) {
+            progressFill.style.width = `${pct * 100}%`;
+            progressPhase.textContent = phase;
+        }
+
+        function updateStats(stats) {
+            document.getElementById('stat-fps').textContent = stats.fps;
+            document.getElementById('stat-frame').textContent = stats.frame.toFixed(1);
+            document.getElementById('stat-total').textContent = formatNumber(stats.total);
+            document.getElementById('stat-rendered').textContent = formatNumber(stats.rendered);
+            document.getElementById('stat-memory').textContent = stats.memory.toFixed(0);
+            document.getElementById('stat-batches').textContent = stats.batches;
+            document.getElementById('overlay-fps').textContent = stats.fps;
+            document.getElementById('overlay-points').textContent = formatNumber(stats.rendered);
+            document.getElementById('overlay-lod').textContent = `L${stats.lod} (${stats.lodFactor}x)`;
+            document.getElementById('overlay-frame').textContent = stats.frame.toFixed(1) + 'ms';
+        }
+
+        async function initWebGPU() {
+            log('info', 'Checking WebGPU...');
+            if (!navigator.gpu) {
+                log('error', 'WebGPU not supported');
+                document.getElementById('webgpu-status').textContent = '❌';
+                document.getElementById('webgpu-label').textContent = 'Not Supported';
+                return false;
+            }
+
+            try {
+                const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+                if (!adapter) throw new Error('No adapter');
+
+                const info = await adapter.requestAdapterInfo?.() || {};
+                maxBufferSize = adapter.limits.maxBufferSize;
+
+                document.getElementById('gpu-info').innerHTML = `
+                    <strong>GPU:</strong> ${info.vendor || 'Unknown'}<br>
+                    <strong>Device:</strong> ${info.device || info.description || 'Unknown'}<br>
+                    <strong>Max Buffer:</strong> ${(maxBufferSize / 1024 / 1024).toFixed(0)} MB
+                `;
+
+                log('success', `GPU: ${info.vendor || 'Unknown'}`);
+
+                device = await adapter.requestDevice({
+                    requiredLimits: { maxBufferSize }
+                });
+
+                context = canvas.getContext('webgpu');
+                format = navigator.gpu.getPreferredCanvasFormat();
+
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+
+                context.configure({ device, format, alphaMode: 'opaque' });
+
+                const module = device.createShaderModule({ code: SHADER });
+
+                const bindGroupLayout = device.createBindGroupLayout({
+                    entries: [{
+                        binding: 0,
+                        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                        buffer: { type: 'uniform' },
+                    }],
+                });
+
+                uniformBuffer = device.createBuffer({
+                    size: 48,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                });
+
+                bindGroup = device.createBindGroup({
+                    layout: bindGroupLayout,
+                    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+                });
+
+                pipeline = device.createRenderPipeline({
+                    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+                    vertex: {
+                        module,
+                        entryPoint: 'vs_main',
+                        buffers: [{
+                            arrayStride: 8,
+                            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }],
+                        }],
+                    },
+                    fragment: {
+                        module,
+                        entryPoint: 'fs_main',
+                        targets: [{ format }],
+                    },
+                    primitive: { topology: 'line-strip' },
+                });
+
+                document.getElementById('webgpu-status').textContent = '✅';
+                document.getElementById('webgpu-label').textContent = 'WebGPU Active';
+                document.getElementById('webgpu-badge').classList.add('active');
+                log('success', 'WebGPU initialized');
+                return true;
+            } catch (e) {
+                log('error', `Init failed: ${e.message}`);
+                return false;
+            }
+        }
+
+        async function loadData(pointCount) {
+            if (!device && !await initWebGPU()) return;
+
+            if (rafId) cancelAnimationFrame(rafId);
+            animating = false;
+
+            const requiredSize = pointCount * 8;
+            if (requiredSize > maxBufferSize) {
+                log('error', `Size ${(requiredSize / 1e6).toFixed(0)}MB > limit ${(maxBufferSize / 1e6).toFixed(0)}MB`);
+                return;
+            }
+
+            showProgress(true);
+            log('info', `Loading ${formatNumber(pointCount)} points...`);
+            totalPoints = pointCount;
+
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            event?.target?.classList.add('active');
+
+            try {
+                // Generate data
+                updateProgress('Generating...', 0);
+                const data = new Float32Array(pointCount * 2);
+                const chunk = 1_000_000;
+
+                for (let i = 0; i < pointCount; i += chunk) {
+                    const end = Math.min(i + chunk, pointCount);
+                    for (let j = i; j < end; j++) {
+                        data[j * 2] = j / (pointCount - 1);
+                        data[j * 2 + 1] = 0.5;
+                    }
+                    updateProgress('Generating...', i / pointCount);
+                    await new Promise(r => setTimeout(r, 0));
+                }
+
+                // Create buffers
+                updateProgress('Creating buffer...', 0.5);
+                if (vertexBuffer) vertexBuffer.destroy();
+                lodBuffers.forEach(b => b.buffer?.destroy());
+                lodBuffers = [];
+
+                vertexBuffer = device.createBuffer({
+                    size: data.byteLength,
+                    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                });
+
+                // Upload
+                updateProgress('Uploading...', 0);
+                const uploadStart = performance.now();
+                for (let offset = 0; offset < data.byteLength; offset += CHUNK_SIZE) {
+                    const size = Math.min(CHUNK_SIZE, data.byteLength - offset);
+                    device.queue.writeBuffer(vertexBuffer, offset, new Uint8Array(data.buffer, offset, size));
+                    updateProgress('Uploading...', offset / data.byteLength);
+                    await new Promise(r => setTimeout(r, 0));
+                }
+                log('data', `Upload: ${(performance.now() - uploadStart).toFixed(0)}ms`);
+
+                // LOD levels
+                updateProgress('Building LOD...', 0);
+                lodBuffers = [{ buffer: vertexBuffer, pointCount, factor: 1 }];
+
+                for (const factor of [10, 100, 1000]) {
+                    const lodCount = Math.ceil(pointCount / factor);
+                    if (lodCount < 1000) continue;
+
+                    const lodData = new Float32Array(lodCount * 2);
+                    for (let i = 0; i < lodCount; i++) {
+                        const src = i * factor;
+                        lodData[i * 2] = data[src * 2];
+                        lodData[i * 2 + 1] = data[src * 2 + 1];
+                    }
+
+                    const lodBuffer = device.createBuffer({
+                        size: lodData.byteLength,
+                        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                    });
+                    device.queue.writeBuffer(lodBuffer, 0, lodData);
+                    lodBuffers.push({ buffer: lodBuffer, pointCount: lodCount, factor });
+                }
+
+                log('data', `${lodBuffers.length} LOD levels`);
+                updateLODSelector();
+                currentLOD = 0;
+
+                showProgress(false);
+                animating = true;
+                document.getElementById('btn-animate').textContent = '⏸ Pause';
+                statsGrid.classList.add('animating');
+                requestAnimationFrame(renderLoop);
+                log('success', `Ready! ${formatNumber(pointCount)} points`);
+
+            } catch (e) {
+                log('error', `Load failed: ${e.message}`);
+                showProgress(false);
+            }
+        }
+
+        function updateLODSelector() {
+            lodSelector.querySelectorAll('.lod-btn').forEach((btn, i) => {
+                if (i < lodBuffers.length) {
+                    btn.disabled = false;
+                    btn.classList.toggle('active', i === currentLOD);
+                    const lod = lodBuffers[i];
+                    btn.textContent = i === 0 ? `Full (${formatNumber(lod.pointCount)})` :
+                        `${lod.factor}x (${formatNumber(lod.pointCount)})`;
+                } else {
+                    btn.disabled = true;
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function selectLOD(level) {
+            if (level >= lodBuffers.length) return;
+            currentLOD = level;
+            log('info', `LOD ${level}: ${formatNumber(lodBuffers[level].pointCount)} pts`);
+            updateLODSelector();
+        }
+
+        const startTime = performance.now();
+        // Pre-allocate uniform buffer to avoid GC pressure
+        const uniformData = new Float32Array(12);
+        uniformData[0] = 2;     // scale.x
+        uniformData[1] = 2;     // scale.y
+        uniformData[2] = -1;    // translate.x
+        uniformData[3] = -1;    // translate.y
+        uniformData[4] = 0;     // color.r
+        uniformData[5] = 0.85;  // color.g
+        uniformData[6] = 1;     // color.b
+        uniformData[7] = 1;     // color.a
+        uniformData[9] = 0.25;  // amplitude
+        uniformData[10] = 30.0; // frequency
+        uniformData[11] = 0;    // padding
+
+        function render() {
+            if (!pipeline || !lodBuffers[currentLOD]) return 0;
+
+            const lod = lodBuffers[currentLOD];
+
+            // Only update time - reuse buffer to avoid GC
+            uniformData[8] = (performance.now() - startTime) * 0.002;
+            device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+            const encoder = device.createCommandEncoder();
+            const pass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: context.getCurrentTexture().createView(),
+                    clearValue: { r: 0.02, g: 0.02, b: 0.04, a: 1 },
+                    loadOp: 'clear',
+                    storeOp: 'store',
+                }],
+            });
+
+            pass.setPipeline(pipeline);
+            pass.setBindGroup(0, bindGroup);
+            pass.setVertexBuffer(0, lod.buffer);
+            pass.draw(lod.pointCount);
+            pass.end();
+
+            device.queue.submit([encoder.finish()]);
+            return 1;
+        }
+
+        function renderLoop() {
+            if (!animating) return;
+
+            const start = performance.now();
+            const batches = render();
+            lastFrameTime = performance.now() - start;
+            frameCount++;
+
+            const now = performance.now();
+            if (now - lastFpsTime >= 1000) {
+                currentFps = frameCount;
+                frameCount = 0;
+                lastFpsTime = now;
+
+                const lod = lodBuffers[currentLOD] || { pointCount: 0, factor: 1 };
+                updateStats({
+                    fps: currentFps,
+                    frame: lastFrameTime,
+                    total: totalPoints,
+                    rendered: lod.pointCount,
+                    memory: (vertexBuffer?.size || 0) / 1024 / 1024,
+                    batches,
+                    lod: currentLOD,
+                    lodFactor: lod.factor,
+                });
+            }
+
+            rafId = requestAnimationFrame(renderLoop);
+        }
+
+        window.loadData = loadData;
+        window.toggleAnimate = function () {
+            animating = !animating;
+            document.getElementById('btn-animate').textContent = animating ? '⏸ Pause' : '▶ Animate';
+            statsGrid.classList.toggle('animating', animating);
+            if (animating) requestAnimationFrame(renderLoop);
+        };
+        window.resetView = function () { time = 0; if (!animating) render(); };
+
+        lodSelector.addEventListener('click', e => {
+            if (e.target.classList.contains('lod-btn') && !e.target.disabled) {
+                selectLOD(parseInt(e.target.dataset.lod));
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (context) {
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                context.configure({ device, format, alphaMode: 'opaque' });
+            }
+        });
+
+        initWebGPU().then(ok => {
+            if (ok) {
+                showProgress(false);
+                log('info', 'Select a data size to begin');
+            }
+        });
+    </script>
+</body>
+
+</html>

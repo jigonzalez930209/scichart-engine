@@ -17,10 +17,11 @@ chart.addHeatmap(options: HeatmapOptions): void
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `id` | `string` | **required** | Unique identifier |
-| `type` | `'line' \| 'scatter' \| 'both' \| 'bar' \| 'heatmap'` | `'line'` | Visualization type |
-| `data` | `SeriesData` | **required** | X and Y data arrays |
+| `type` | `'line' \| 'scatter' \| 'both' \| 'bar' \| 'heatmap' \| 'candlestick' \| 'area' \| 'band' \| 'step' \| 'step+scatter'` | `'line'` | Visualization type |
+| `data` | `SeriesData` | **required** | X and Y data arrays (and OHLC for candlesticks) |
 | `style` | `SeriesStyle` | `{}` | Visual styling |
 | `visible` | `boolean` | `true` | Initial visibility |
+| `stackId` | `string` | `undefined` | ID for stacking multiple series cumulativeley |
 | `name` | `string` | `id` | Display name in legend |
 
 ### SeriesData
@@ -29,6 +30,13 @@ chart.addHeatmap(options: HeatmapOptions): void
 interface SeriesData {
   x: Float32Array | Float64Array
   y: Float32Array | Float64Array
+  // Optional OHLC for candlesticks
+  open?: Float32Array | Float64Array
+  high?: Float32Array | Float64Array
+  low?: Float32Array | Float64Array
+  close?: Float32Array | Float64Array
+  // Optional Y2 for band series
+  y2?: Float32Array | Float64Array
 }
 ```
 
@@ -91,6 +99,7 @@ chart.updateSeries(id: string, data: SeriesUpdateData): void
 | `x` | `Float32Array \| Float64Array` | New X values |
 | `y` | `Float32Array \| Float64Array` | New Y values |
 | `append` | `boolean` | If true, append to existing data |
+| `maxPoints` | `number` | Optional limit for rolling window |
 
 ### Example
 
