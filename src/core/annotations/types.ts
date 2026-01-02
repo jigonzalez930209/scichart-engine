@@ -27,6 +27,8 @@ export interface BaseAnnotation {
   interactive?: boolean;
   /** Z-index for layering */
   zIndex?: number;
+  /** Tooltip text or configuration */
+  tooltip?: string | any;
 }
 
 // ============================================

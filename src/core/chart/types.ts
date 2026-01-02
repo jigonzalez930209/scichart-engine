@@ -72,6 +72,8 @@ export interface Chart {
   exportJSON(options?: ExportOptions): string;
   /** Attach a plugin to extend chart functionality */
   use(plugin: ChartPlugin): void;
+  /** Access to the tooltip system */
+  readonly tooltip: import("../tooltip").TooltipManager;
 }
 
 export interface ChartPlugin {

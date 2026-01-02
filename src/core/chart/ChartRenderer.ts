@@ -40,6 +40,7 @@ export interface RenderContext {
   getPlotArea: () => PlotArea;
   pixelToDataX: (px: number) => number;
   pixelToDataY: (py: number) => number;
+  tooltip: import("../tooltip").TooltipManager;
 }
 
 /**
@@ -268,20 +269,30 @@ export function renderOverlay(
 
   // Cursor
   if (ctx.cursorOptions?.enabled && ctx.cursorPosition) {
+    // Use legacy tooltip only if new tooltip system doesn't have an active tooltip
+    const skipLegacyTooltip = ctx.tooltip?.hasActiveTooltip?.();
+    
     const cursor: CursorState = {
       enabled: true,
       x: ctx.cursorPosition.x,
       y: ctx.cursorPosition.y,
       crosshair: ctx.cursorOptions.crosshair ?? false,
-      tooltipText: ctx.cursorOptions.formatter
-        ? ctx.cursorOptions.formatter(
-            ctx.pixelToDataX(ctx.cursorPosition.x),
-            ctx.pixelToDataY(ctx.cursorPosition.y),
-            ""
-          )
-        : `X: ${ctx.pixelToDataX(ctx.cursorPosition.x).toFixed(3)}\nY: ${ctx.pixelToDataY(ctx.cursorPosition.y).toExponential(2)}`,
+      tooltipText: skipLegacyTooltip 
+        ? undefined 
+        : (ctx.cursorOptions.formatter
+            ? ctx.cursorOptions.formatter(
+                ctx.pixelToDataX(ctx.cursorPosition.x),
+                ctx.pixelToDataY(ctx.cursorPosition.y),
+                ""
+              )
+            : `X: ${ctx.pixelToDataX(ctx.cursorPosition.x).toFixed(3)}\nY: ${ctx.pixelToDataY(ctx.cursorPosition.y).toExponential(2)}`),
     };
     ctx.overlay.drawCursor(plotArea, cursor);
+  }
+
+  // Draw new tooltips
+  if (ctx.tooltip) {
+    ctx.tooltip.render();
   }
 
   // Statistics Panel

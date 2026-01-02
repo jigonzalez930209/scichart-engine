@@ -32,6 +32,7 @@ import { ChartControls } from "../ChartControls";
 import { ChartLegend } from "../ChartLegend";
 import { ChartStatistics } from "../ChartStatistics";
 import { AnnotationManager, type Annotation } from "../annotations";
+import { TooltipManager } from "../tooltip";
 
 import type { Chart, ExportOptions } from "./types";
 import { exportToCSV, exportToJSON, exportToImage } from "./ChartExporter";
@@ -101,7 +102,8 @@ export class ChartImpl implements Chart {
   private showControls: boolean;
   private controls: ChartControls | null = null;
   private animationFrameId: number | null = null;
-  private needsRender = false;
+  private needsFullRender = false;
+  private needsOverlayRender = false;
   private isDestroyed = false;
   private autoScroll = false;
   private showStatistics = false;
@@ -113,6 +115,7 @@ export class ChartImpl implements Chart {
     height: number;
   } | null = null;
   private annotationManager: AnnotationManager = new AnnotationManager();
+  public readonly tooltip: TooltipManager;
   private pluginManager: PluginManagerImpl;
   private initialOptions: ChartOptions;
   public readonly analysis = analysis;
@@ -162,17 +165,32 @@ export class ChartImpl implements Chart {
         onBoxZoom: (rect) => this.handleBoxZoom(rect),
         onCursorMove: (x, y) => {
           this.cursorPosition = { x, y };
-          this.requestRender();
+          this.tooltip.handleCursorMove(x, y);
+          this.requestOverlayRender();
         },
         onCursorLeave: () => {
           this.cursorPosition = null;
-          this.requestRender();
+          this.tooltip.handleCursorLeave();
+          this.requestOverlayRender();
         },
       },
       () => this.getPlotArea(),
       (axisId) => this.getInteractedBounds(axisId),
       () => getAxesLayout(this.yAxisOptionsMap as any)
     );
+
+    this.tooltip = new TooltipManager({
+      overlayCtx: this.overlayCtx,
+      chartTheme: this.theme,
+      getPlotArea: () => this.getPlotArea(),
+      getSeries: () => this.getAllSeries(),
+      pixelToDataX: (px) => this.pixelToDataX(px),
+      pixelToDataY: (py) => this.pixelToDataY(py),
+      getXScale: () => this.xScale,
+      getYScales: () => this.yScales,
+      getViewBounds: () => this.viewBounds,
+      options: options.tooltip
+    });
 
     new ResizeObserver(() => !this.isDestroyed && this.resize()).observe(
       this.container
@@ -245,6 +263,7 @@ export class ChartImpl implements Chart {
     this.container.style.backgroundColor = this.theme.backgroundColor;
     
     this.overlay.setTheme(this.theme);
+    this.tooltip.updateChartTheme(this.theme);
     if (this.controls) this.controls.updateTheme(this.theme);
     if (this.legend) this.legend.updateTheme(this.theme);
     if (this.stats) this.stats.updateTheme(this.theme);
@@ -381,13 +400,19 @@ export class ChartImpl implements Chart {
   private handleBoxZoom(
     rect: { x: number; y: number; width: number; height: number } | null
   ): void {
+    const isFinishing = rect === null;
     this.selectionRect = handleBoxZoom(
       this.getNavContext(),
       rect,
       this.selectionRect,
       (o: any) => this.zoom(o)
     );
-    this.requestRender();
+    
+    if (isFinishing) {
+      this.requestRender();
+    } else {
+      this.requestOverlayRender();
+    }
   }
 
   // Cursor
@@ -397,23 +422,23 @@ export class ChartImpl implements Chart {
   disableCursor(): void {
     this.cursorOptions = null;
     this.cursorPosition = null;
-    this.requestRender();
+    this.requestOverlayRender();
   }
 
   // Annotations
   addAnnotation(annotation: Annotation): string {
     const id = this.annotationManager.add(annotation);
-    this.requestRender();
+    this.requestOverlayRender();
     return id;
   }
   removeAnnotation(id: string): boolean {
     const result = this.annotationManager.remove(id);
-    this.requestRender();
+    this.requestOverlayRender();
     return result;
   }
   updateAnnotation(id: string, updates: Partial<Annotation>): void {
     this.annotationManager.update(id, updates);
-    this.requestRender();
+    this.requestOverlayRender();
   }
   getAnnotation(id: string): Annotation | undefined {
     return this.annotationManager.get(id);
@@ -423,7 +448,7 @@ export class ChartImpl implements Chart {
   }
   clearAnnotations(): void {
     this.annotationManager.clear();
-    this.requestRender();
+    this.requestOverlayRender();
   }
 
   // Export
@@ -455,10 +480,14 @@ export class ChartImpl implements Chart {
   }
 
   requestRender(): void {
-    this.needsRender = true;
+    this.needsFullRender = true;
   }
 
-  render(): void {
+  requestOverlayRender(): void {
+    this.needsOverlayRender = true;
+  }
+
+  render(full: boolean = true): void {
     if (this.isDestroyed) return;
     const start = performance.now();
     const plotArea = this.getPlotArea();
@@ -491,17 +520,23 @@ export class ChartImpl implements Chart {
       getPlotArea: () => plotArea,
       pixelToDataX: (px: number) => this.pixelToDataX(px),
       pixelToDataY: (py: number) => this.pixelToDataY(py),
+      tooltip: this.tooltip,
     };
 
-    const seriesData = prepareSeriesData(ctx, plotArea);
-    this.pluginManager.notify('onBeforeRender', this);
-    this.renderer.render(seriesData, {
-      bounds: this.viewBounds,
-      backgroundColor: this.backgroundColor,
-      plotArea,
-    });
-    renderOverlay(ctx, plotArea, this.yScale);
-    this.pluginManager.notify('onAfterRender', this);
+    if (full) {
+      const seriesData = prepareSeriesData(ctx, plotArea);
+      this.pluginManager.notify('onBeforeRender', this);
+      this.renderer.render(seriesData, {
+        bounds: this.viewBounds,
+        backgroundColor: this.backgroundColor,
+        plotArea,
+      });
+      renderOverlay(ctx, plotArea, this.yScale);
+      this.pluginManager.notify('onAfterRender', this);
+    } else {
+      // Overlay only render
+      renderOverlay(ctx, plotArea, this.yScale);
+    }
 
     this.events.emit("render", {
       fps: 1000 / (performance.now() - start),
@@ -520,9 +555,13 @@ export class ChartImpl implements Chart {
   private startRenderLoop(): void {
     const loop = () => {
       if (this.isDestroyed) return;
-      if (this.needsRender) {
-        this.render();
-        this.needsRender = false;
+      if (this.needsFullRender) {
+        this.render(true);
+        this.needsFullRender = false;
+        this.needsOverlayRender = false;
+      } else if (this.needsOverlayRender) {
+        this.render(false);
+        this.needsOverlayRender = false;
       }
       this.animationFrameId = requestAnimationFrame(loop);
     };
@@ -554,6 +593,7 @@ export class ChartImpl implements Chart {
     this.renderer.destroy();
     if (this.controls) this.controls.destroy();
     if (this.legend) this.legend.destroy();
+    if (this.tooltip) this.tooltip.destroy();
     while (this.container.firstChild)
       this.container.removeChild(this.container.firstChild);
     console.log("[SciChart] Destroyed");
