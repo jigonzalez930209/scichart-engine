@@ -327,6 +327,8 @@ export interface ChartOptions {
   autoScroll?: boolean;
   /** Show statistics panel (default: false) */
   showStatistics?: boolean;
+  /** Tooltip configuration */
+  tooltip?: import("./core/tooltip/types").TooltipOptions;
 }
 
 // ============================================

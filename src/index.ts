@@ -111,6 +111,26 @@ export type {
 } from "./types";
 
 // ============================================
+// Tooltip System
+// ============================================
+export {
+  TooltipManager,
+  TOOLTIP_THEMES,
+  getTooltipThemeForChartTheme,
+} from "./core/tooltip";
+
+export type {
+  TooltipData,
+  TooltipType,
+  TooltipTheme,
+  TooltipOptions,
+  TooltipTemplate,
+  DataPointTooltip,
+  CrosshairTooltip,
+  HeatmapTooltip,
+} from "./core/tooltip";
+
+// ============================================
 // Downsampling
 // ============================================
 export {
