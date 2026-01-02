@@ -1,21 +1,21 @@
 name: Publish to NPM
 
 on:
-  release:
-    types: [created]
-  # Permite disparar el workflow manualmente desde la pestaña Actions de GitHub
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install pnpm
@@ -23,13 +23,34 @@ jobs:
         with:
           version: 8
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Build library
-        run: pnpm run build
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Project
+        run: pnpm build
 
       - name: Publish to NPM
-        run: pnpm publish --no-git-checks --access public
+        run: |
+          # Solo publicamos si la versión no existe ya en NPM
+          # Esto evita que el workflow falle si haces un push sin subir la versión
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          if npm view scichart-engine@$CURRENT_VERSION version > /dev/null 2>&1; then
+            echo "Version $CURRENT_VERSION already published. Skipping."
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
