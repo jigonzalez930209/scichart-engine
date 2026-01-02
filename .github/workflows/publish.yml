@@ -44,13 +44,15 @@ jobs:
 
       - name: Publish to NPM
         run: |
-          # Solo publicamos si la versión no existe ya en NPM
-          # Esto evita que el workflow falle si haces un push sin subir la versión
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          if npm view scichart-engine@$CURRENT_VERSION version > /dev/null 2>&1; then
-            echo "Version $CURRENT_VERSION already published. Skipping."
+          # Detect current version
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          
+          # Check if version already exists
+          if npm view scichart-engine@$PACKAGE_VERSION version > /dev/null 2>&1; then
+            echo "⚠️ Version $PACKAGE_VERSION already exists on NPM. Skipping publish."
           else
-            npm publish --access public
+            echo "🚀 Publishing version $PACKAGE_VERSION..."
+            pnpm publish --no-git-checks --access public
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
