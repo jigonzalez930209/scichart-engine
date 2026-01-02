@@ -220,8 +220,8 @@ export class OverlayRenderer {
       ctx.textBaseline = "top";
       
       const titleX = position === 'left' 
-        ? axisX - 40 // Ajustar padding para título izquierdo
-        : axisX + 40; // Ajustar padding para título derecho
+        ? axisX - 40 // Adjust padding for left title
+        : axisX + 40; // Adjust padding for right title
       
       const titleY = plotArea.y + plotArea.height / 2;
       

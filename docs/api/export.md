@@ -215,7 +215,7 @@ The image export uses the current canvas state and is limited by the screen reso
 
 ```tsx
 import { useRef } from 'react';
-import { SciChart } from '@jigonzalez930209/scichart-engine/react';
+import { SciChart } from 'scichart-engine/react';
 
 function ChartWithExport() {
   const chartRef = useRef(null);

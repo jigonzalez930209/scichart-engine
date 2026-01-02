@@ -26,7 +26,7 @@ Create your first chart in minutes.
 
 ```javascript
 // main.js
-import { createChart } from '@jigonzalez930209/scichart-engine'
+import { createChart } from 'scichart-engine'
 
 const chart = createChart({
   container: document.getElementById('chart'),
@@ -60,7 +60,7 @@ chart.addSeries({
 ### 1. Create Component
 
 ```tsx
-import { SciChart } from '@jigonzalez930209/scichart-engine/react'
+import { SciChart } from 'scichart-engine/react'
 
 function MyChart() {
   // Generate data

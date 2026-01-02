@@ -10,7 +10,7 @@ Step charts display data as a series of horizontal and vertical line segments, c
 ## Quick Example
 
 ```typescript
-import { createChart } from '@jigonzalez930209/scichart-engine';
+import { createChart } from 'scichart-engine';
 
 const chart = createChart({
   container: document.getElementById('chart'),

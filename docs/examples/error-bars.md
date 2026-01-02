@@ -45,7 +45,7 @@ data: {
 ## Code Example
 
 ```typescript
-import { createChart } from '@jigonzalez930209/scichart-engine';
+import { createChart } from 'scichart-engine';
 
 const chart = createChart({
   container: document.getElementById('chart'),

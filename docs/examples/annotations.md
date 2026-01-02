@@ -22,7 +22,7 @@ This demo showcases all annotation types available in SciChart Engine. The chart
 ## Code
 
 ```typescript
-import { createChart } from '@jigonzalez930209/scichart-engine';
+import { createChart } from 'scichart-engine';
 
 const chart = createChart({
   container: document.getElementById('chart'),

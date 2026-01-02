@@ -10,7 +10,7 @@ Error bars are essential for scientific data visualization, showing the uncertai
 ## Quick Example
 
 ```typescript
-import { createChart } from '@jigonzalez930209/scichart-engine';
+import { createChart } from 'scichart-engine';
 
 const chart = createChart({
   container: document.getElementById('chart'),

@@ -20,9 +20,9 @@ A high-performance, WebGL-powered scientific charting engine built for precision
 ## 🛠️ Installation
 
 ```bash
-npm install @jigonzalez930209/scichart-engine
+npm install scichart-engine
 # or
-pnpm add @jigonzalez930209/scichart-engine
+pnpm add scichart-engine
 ```
 
 ## 🚀 Quick Examples
@@ -30,7 +30,7 @@ pnpm add @jigonzalez930209/scichart-engine
 ### React (Recommended)
 
 ```tsx
-import { SciChart } from '@jigonzalez930209/scichart-engine/react';
+import { SciChart } from 'scichart-engine/react';
 
 function App() {
   const data = {
@@ -54,7 +54,7 @@ function App() {
 ### Vanilla JavaScript
 
 ```typescript
-import { createChart } from '@jigonzalez930209/scichart-engine';
+import { createChart } from 'scichart-engine';
 
 const chart = createChart({
   container: document.getElementById('chart-container'),
