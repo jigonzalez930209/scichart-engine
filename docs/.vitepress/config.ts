@@ -85,6 +85,7 @@ export default defineConfig({
             { text: "Candlestick", link: "/api/candlestick" },
             { text: "Error Bars", link: "/api/error-bars" },
             { text: "Annotations", link: "/api/annotations" },
+            { text: "Tooltip System", link: "/api/tooltips" },
             { text: "Plugins", link: "/api/plugins" },
             { text: "Statistics Panel", link: "/api/statistics-panel" },
             { text: "Data Export", link: "/api/export" },
@@ -138,6 +139,7 @@ export default defineConfig({
             { text: "Candlestick", link: "/examples/candlestick" },
             { text: "Stacked Charts", link: "/examples/stacked-charts" },
             { text: "Statistics Panel", link: "/examples/statistics" },
+            { text: "Tooltip Showcase", link: "/examples/tooltips" },
           ],
         },
         // =================================================================

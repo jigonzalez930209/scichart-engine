@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useData } from 'vitepress'
 
 const props = defineProps<{
-  type?: 'basic' | 'realtime' | 'large' | 'scatter' | 'multi' | 'annotations' | 'step' | 'errorbars' | 'symbols' | 'multi-axis' | 'fitting' | 'analysis' | 'area' | 'bar' | 'heatmap' | 'candlestick' | 'stacked' | 'statistics'
+  type?: 'basic' | 'realtime' | 'large' | 'scatter' | 'multi' | 'annotations' | 'step' | 'errorbars' | 'symbols' | 'multi-axis' | 'fitting' | 'analysis' | 'area' | 'bar' | 'heatmap' | 'candlestick' | 'stacked' | 'statistics' | 'tooltips'
   height?: string
   points?: number
 }>()
@@ -136,6 +136,8 @@ function initDemo() {
     generateStackedDemo()
   } else if (type === 'statistics') {
     generateBasicData(1000)
+  } else if (type === 'tooltips') {
+    generateTooltipsDemo()
   } else {
     generateBasicData(n)
   }
@@ -979,6 +981,58 @@ function toggleRealtime() {
   } else {
     startRealtime()
   }
+}
+
+function generateTooltipsDemo() {
+  const n = 1000;
+  const x = new Float32Array(n);
+  const y1 = new Float32Array(n);
+  const y2 = new Float32Array(n);
+  
+  for (let i = 0; i < n; i++) {
+    x[i] = i / 20;
+    y1[i] = Math.sin(x[i] * 0.5) * 5 + 10;
+    y2[i] = Math.cos(x[i] * 0.8) * 3 + 5;
+  }
+  
+  chart.addSeries({
+    id: 'primary',
+    name: 'Primary Sensor',
+    type: 'line',
+    data: { x, y: y1 },
+    style: { color: '#00f2ff', width: 2 }
+  });
+  
+  chart.addSeries({
+    id: 'secondary',
+    name: 'Secondary Input',
+    type: 'scatter',
+    data: { x, y: y2 },
+    style: { color: '#ff6b6b', pointSize: 6 }
+  });
+
+  // Add some annotations with tooltips
+  chart.addAnnotation({
+    type: 'horizontal-line',
+    y: 10,
+    color: 'rgba(255, 255, 255, 0.2)',
+    label: 'Threshold',
+    tooltip: 'Standard operation threshold'
+  });
+
+  // Initial configuration
+  chart.tooltip.configure({
+    enabled: true,
+    theme: chartTheme.value === 'midnight' ? 'glass' : 'light',
+    followCursor: true,
+    showDelay: 0,
+    dataPoint: {
+      snapToPoint: true,
+      hitRadius: 25
+    }
+  });
+
+  pointCount.value = n * 2;
 }
 
 function resetDemo() {

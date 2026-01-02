@@ -88,6 +88,16 @@ High-performance 2D intensity maps with customizable color scales.
 
 [View full example →](/examples/heatmap)
 
+---
+
+### Tooltip System
+
+Professional tooltips with themes, animations, and scientific notation.
+
+<ChartDemo type="tooltips" height="300px" />
+
+[View full example →](/examples/tooltips)
+
 ## Quick Links
 
 | Example | Description | Key Feature |
@@ -100,6 +110,7 @@ High-performance 2D intensity maps with customizable color scales.
 | [Peak Analysis](/examples/analysis) | Integration/Baseline | Area calculation |
 | [Bar Charts](/examples/bar-charts) | Categorical data | Automatic width |
 | [Heatmaps](/examples/heatmap) | 2D intensity maps | Color scales |
+| [Tooltips](/examples/tooltips) | Tooltip system | Themes & Animations |
 
 ## Code Snippets
 
@@ -159,3 +170,4 @@ These examples are available when running the development server:
 - [React Showcase](/examples/react-showcase/index.html)
 - [Performance Test](/examples/performance-test/index.html)
 - [Electrochemistry](/examples/electrochemistry-showcase/index.html)
+- [Tooltip Showcase](/examples/tooltip-showcase/index.html)

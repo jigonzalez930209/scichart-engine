@@ -36,6 +36,7 @@ SciChart Engine provides a comprehensive API for creating high-performance scien
 |--------|-------------|
 | `chart.enableCursor(options)` | Enable crosshair cursor |
 | `chart.disableCursor()` | Disable cursor |
+| [`chart.tooltip`](/api/tooltips) | Tooltip system manager |
 
 ### Events
 
@@ -157,6 +158,20 @@ style: {
 ```
 
 [View Scatter Symbols documentation →](/api/scatter-symbols)
+
+### Tooltip System
+
+Advanced, high-performance tooltips with multi-series support, scientific notation, and smooth animations.
+
+**Tooltip Modes:**
+- `dataPoint` - Snap to nearest data point
+- `crosshair` - Multi-series vertical tracking 
+- `heatmap` - Cell-specific intensity display
+
+**Themes:**
+`dark`, `light`, `glass` (translucent), `midnight` (blue), `neon` (vibrant), `minimal`.
+
+[View Tooltip System documentation →](/api/tooltips)
 
 ## React API
 
