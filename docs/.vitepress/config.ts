@@ -131,6 +131,7 @@ export default defineConfig({
             { text: "Annotations", link: "/examples/annotations" },
             { text: "Real-time Streaming", link: "/examples/realtime" },
             { text: "Large Datasets", link: "/examples/large-datasets" },
+            { text: "🚀 10M Points Challenge", link: "/examples/10m-points" },
             { text: "React Integration", link: "/examples/react" },
             { text: "Curve Fitting", link: "/examples/curve-fitting" },
             { text: "Peak Analysis", link: "/examples/analysis" },

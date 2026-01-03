@@ -8,7 +8,7 @@
 import type { Scale } from "../scales";
 import type { ChartTheme } from "../theme";
 import type { Series } from "./Series";
-import type { PlotArea, CursorState } from "../types";
+import type { PlotArea, CursorState, AxisOptions } from "../types";
 
 // ============================================
 // Overlay Renderer Class
@@ -113,11 +113,12 @@ export class OverlayRenderer {
   /**
    * Draw X axis with ticks and labels
    */
-  drawXAxis(plotArea: PlotArea, xScale: Scale, label?: string): void {
+  drawXAxis(plotArea: PlotArea, xScale: Scale, options?: AxisOptions): void {
     const { ctx } = this;
     const axis = this.theme.xAxis;
     const xTicks = xScale.ticks(8);
     const axisY = plotArea.y + plotArea.height;
+    const label = options?.label;
 
     // Axis line
     ctx.strokeStyle = axis.lineColor;
@@ -145,7 +146,7 @@ export class OverlayRenderer {
         ctx.stroke();
 
         // Label
-        ctx.fillText(this.formatXTick(tick), x, axisY + axis.tickLength + 3);
+        ctx.fillText(this.formatXTick(tick, options), x, axisY + axis.tickLength + 3);
       }
     });
 
@@ -169,13 +170,14 @@ export class OverlayRenderer {
   drawYAxis(
     plotArea: PlotArea, 
     yScale: Scale, 
-    label?: string, 
+    options?: AxisOptions, 
     position: "left" | "right" = "left",
     offset: number = 0
   ): void {
     const { ctx } = this;
     const axis = this.theme.yAxis;
     const yTicks = yScale.ticks(6);
+    const label = options?.label;
     // Calculate X coordinate for axis line based on position and offset
     const axisX = position === 'left' ? plotArea.x - offset : plotArea.x + plotArea.width + offset;
     const tickDir = position === 'left' ? -1 : 1; // Left points left, right points right
@@ -207,7 +209,7 @@ export class OverlayRenderer {
 
         // Label
         const labelX = axisX + (axis.tickLength + 3) * tickDir;
-        ctx.fillText(this.formatYTick(tick), labelX, y);
+        ctx.fillText(this.formatYTick(tick, options), labelX, y);
       }
     });
 
@@ -749,17 +751,17 @@ export class OverlayRenderer {
     return minor;
   }
 
-  private formatXTick(value: number): string {
-    if (Math.abs(value) < 0.001 && value !== 0) {
+  private formatXTick(value: number, options?: AxisOptions): string {
+    if (options?.scientific || (Math.abs(value) < 0.001 && value !== 0)) {
       return this.toScientificUnicode(value, 1);
     }
     return value.toFixed(3).replace(/\.?0+$/, "");
   }
 
-  private formatYTick(value: number): string {
+  private formatYTick(value: number, options?: AxisOptions): string {
     if (value === 0) return "0";
     const absVal = Math.abs(value);
-    if (absVal < 0.0001 || absVal >= 10000) {
+    if (options?.scientific || absVal < 0.0001 || absVal >= 10000) {
       return this.toScientificUnicode(value, 1);
     }
     return value.toPrecision(3);
@@ -785,12 +787,14 @@ export class OverlayRenderer {
       "+": "⁺",
     };
 
-    const unicodeExp = exponent.replace(
-      /[0-9\-+]/g,
-      (char) => superscriptMap[char] || char
-    );
+    const unicodeExp = exponent
+      .replace("+", "") // Remove plus sign for compactness
+      .replace(
+        /[0-9\-]/g,
+        (char) => superscriptMap[char] || char
+      );
 
-    // Return "1.2 × 10⁻⁵" format
-    return `${mantissa} × 10${unicodeExp}`;
+    // Return compact "1.0e⁷" format
+    return `${mantissa}e${unicodeExp}`;
   }
 }

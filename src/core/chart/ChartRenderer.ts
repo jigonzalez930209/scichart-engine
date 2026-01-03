@@ -213,7 +213,7 @@ export function renderOverlay(
 
   ctx.overlay.clear(rect.width, rect.height);
   ctx.overlay.drawGrid(plotArea, ctx.xScale, primaryYScale);
-  ctx.overlay.drawXAxis(plotArea, ctx.xScale, ctx.xAxisOptions.label);
+  ctx.overlay.drawXAxis(plotArea, ctx.xScale, ctx.xAxisOptions);
 
   // Group axes by position
   const leftAxes: string[] = [];
@@ -230,7 +230,7 @@ export function renderOverlay(
       const opts = ctx.yAxisOptionsMap.get(id);
       if(scale && opts) {
            const offset = index * 65; 
-           ctx.overlay.drawYAxis(plotArea, scale, opts.label, 'left', offset);
+           ctx.overlay.drawYAxis(plotArea, scale, opts, 'left', offset);
       }
   });
 
@@ -240,7 +240,7 @@ export function renderOverlay(
       const opts = ctx.yAxisOptionsMap.get(id);
       if(scale && opts) {
            const offset = index * 65; 
-           ctx.overlay.drawYAxis(plotArea, scale, opts.label, 'right', offset);
+           ctx.overlay.drawYAxis(plotArea, scale, opts, 'right', offset);
       }
   });
 
